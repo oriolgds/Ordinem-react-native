@@ -1,43 +1,79 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+
+// Definir el tema de Ordinem
+const OrdinemColors = {
+  light: {
+    primary: '#6D9EBE',
+    background: '#F2F2F7',
+    text: '#1F1F3C',
+    border: '#E1E1E8',
+  },
+  dark: {
+    primary: '#6D9EBE',
+    background: '#1E1E1E',
+    text: '#F2F2F7',
+    border: '#333333',
+  }
+};
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? OrdinemColors.dark : OrdinemColors.light;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: colorScheme === 'dark' ? '#666666' : '#8E8E93',
+        headerShown: true,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
+        headerStyle: {
+          backgroundColor: colorScheme === 'dark' ? '#1E1E1E' : '#FFFFFF',
+        },
+        headerTintColor: theme.text,
         tabBarStyle: Platform.select({
           ios: {
-            // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
           },
-          default: {},
+          default: {
+            backgroundColor: colorScheme === 'dark' ? '#1E1E1E' : '#FFFFFF',
+            borderTopColor: theme.border,
+          },
         }),
       }}>
       <Tabs.Screen
-        name="index"
+        name="products"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Productos',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cube-outline" size={size || 24} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="notifications"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Notificaciones',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications-outline" size={size || 24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Ajustes',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size || 24} color={color} />
+          ),
         }}
       />
     </Tabs>

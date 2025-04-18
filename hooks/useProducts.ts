@@ -1,48 +1,41 @@
 import { useState, useEffect } from "react";
-import { FilterOptions } from "@/components/FilterModal";
+import { getProducts, getProductCategories } from "@/services/firebase";
 
-interface Product {
+export interface Product {
   id: string;
   name: string;
   category: string;
   expiryDate: string;
+  location: string;
   quantity: number;
+  barcode?: string;
+  notes?: string;
+}
+
+export interface ProductFilters {
+  category: string;
+  date: string | null;
 }
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filters, setFilters] = useState<FilterOptions>({
-    sortBy: "name",
-    categories: [],
-    expiryRange: "all",
+  const [filters, setFilters] = useState<ProductFilters>({
+    category: "",
+    date: null,
   });
 
   const fetchProducts = async () => {
     try {
-      // Aquí iría la lógica para obtener los productos
-      // Por ahora usaremos datos de ejemplo
-      const mockProducts: Product[] = [
-        {
-          id: "1",
-          name: "Leche",
-          category: "Lácteos",
-          expiryDate: "2024-04-25",
-          quantity: 2,
-        },
-        {
-          id: "2",
-          name: "Pan",
-          category: "Panadería",
-          expiryDate: "2024-04-23",
-          quantity: 1,
-        },
-      ];
+      const productsData = await getProducts();
+      setProducts(productsData);
 
-      setProducts(mockProducts);
+      const categoriesData = await getProductCategories();
+      setCategories(categoriesData);
     } catch (error) {
-      console.error("Error fetching products:", error);
+      console.error("Error al obtener productos:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -53,17 +46,35 @@ export function useProducts() {
     fetchProducts();
   }, []);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchProducts();
+    await fetchProducts();
+  };
+
+  const filterProducts = (query: string, category: string) => {
+    let filtered = [...products];
+
+    if (query) {
+      filtered = filtered.filter((product) =>
+        product.name.toLowerCase().includes(query.toLowerCase())
+      );
+    }
+
+    if (category) {
+      filtered = filtered.filter((product) => product.category === category);
+    }
+
+    return filtered;
   };
 
   return {
     products,
+    categories,
     loading,
     refreshing,
     onRefresh,
     filters,
     setFilters,
+    filterProducts,
   };
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,17 +15,24 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { signInWithEmail } from '@/services/firebase';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
   const router = useRouter();
+  const { redirectIfAuthenticated } = useAuth();
+
+  // Comprobar si el usuario ya está autenticado
+  useEffect(() => {
+    redirectIfAuthenticated();
+  }, []);
 
   const validateForm = () => {
     let isValid = true;
-    const newErrors = {};
+    const newErrors: {email?: string; password?: string} = {};
 
     if (!email.trim()) {
       newErrors.email = 'El email es obligatorio';
@@ -51,7 +58,7 @@ export default function Login() {
       setLoading(true);
       await signInWithEmail(email, password);
       router.replace('/(tabs)/products');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al iniciar sesión:', error);
 
       let errorMessage = 'Ocurrió un error al iniciar sesión';
@@ -59,6 +66,8 @@ export default function Login() {
         errorMessage = 'Email o contraseña incorrectos';
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Demasiados intentos fallidos. Intenta más tarde';
+      } else if (error.code === 'auth/email-not-verified') {
+        errorMessage = 'Por favor, verifica tu correo electrónico antes de iniciar sesión';
       }
 
       Alert.alert('Error de autenticación', errorMessage);
@@ -116,6 +125,13 @@ export default function Login() {
             </View>
 
             <TouchableOpacity
+              style={styles.forgotPassword}
+              onPress={() => router.push('/reset-password')}
+            >
+              <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={styles.loginButton}
               onPress={handleLogin}
               disabled={loading}
@@ -164,7 +180,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1F1F3C',
     marginBottom: 8,
   },
   subtitle: {
@@ -200,6 +216,14 @@ const styles = StyleSheet.create({
     color: '#FF5252',
     fontSize: 12,
     marginTop: 4,
+  },
+  forgotPassword: {
+    alignItems: 'flex-end',
+    marginBottom: 20,
+  },
+  forgotPasswordText: {
+    color: '#6D9EBE',
+    fontSize: 14,
   },
   loginButton: {
     backgroundColor: '#6D9EBE',

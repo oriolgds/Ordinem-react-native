@@ -253,13 +253,202 @@ export const getUserNotifications = async (userId) => {
     }
 };
 
-export const markNotificationAsRead = async (userId, notificationId) => {
+export const markNotificationAsRead = async (notificationId) => {
     try {
-        await update(ref(database, `notifications/${userId}/${notificationId}`), {
-            read: true
-        });
+        const userId = auth.currentUser.uid;
+        const notificationRef = ref(database, `users/${userId}/notifications/${notificationId}`);
+        await update(notificationRef, { read: true });
         return true;
     } catch (error) {
+        console.error('Error al marcar notificación como leída:', error);
+        throw error;
+    }
+};
+
+// Productos
+export const getProducts = async () => {
+    try {
+        const userId = auth.currentUser.uid;
+        const productsRef = ref(database, `users/${userId}/products`);
+        const snapshot = await get(productsRef);
+
+        if (snapshot.exists()) {
+            const productsObj = snapshot.val();
+            // Convertir el objeto en un array con IDs
+            return Object.keys(productsObj).map(key => ({
+                id: key,
+                ...productsObj[key]
+            }));
+        } else {
+            return [];
+        }
+    } catch (error) {
+        console.error('Error al obtener productos:', error);
+        throw error;
+    }
+};
+
+export const getProduct = async (productId) => {
+    try {
+        const userId = auth.currentUser.uid;
+        const productRef = ref(database, `users/${userId}/products/${productId}`);
+        const snapshot = await get(productRef);
+
+        if (snapshot.exists()) {
+            return {
+                id: productId,
+                ...snapshot.val()
+            };
+        } else {
+            throw new Error('Producto no encontrado');
+        }
+    } catch (error) {
+        console.error('Error al obtener producto:', error);
+        throw error;
+    }
+};
+
+export const addProduct = async (productData) => {
+    try {
+        const userId = auth.currentUser.uid;
+        const newProductRef = ref(database, `users/${userId}/products/${productData.id}`);
+        await set(newProductRef, productData);
+        return productData.id;
+    } catch (error) {
+        console.error('Error al añadir producto:', error);
+        throw error;
+    }
+};
+
+export const updateProduct = async (productId, productData) => {
+    try {
+        const userId = auth.currentUser.uid;
+        const productRef = ref(database, `users/${userId}/products/${productId}`);
+        await update(productRef, productData);
+        return true;
+    } catch (error) {
+        console.error('Error al actualizar producto:', error);
+        throw error;
+    }
+};
+
+export const deleteProduct = async (productId) => {
+    try {
+        const userId = auth.currentUser.uid;
+        const productRef = ref(database, `users/${userId}/products/${productId}`);
+        await set(productRef, null);
+        return true;
+    } catch (error) {
+        console.error('Error al eliminar producto:', error);
+        throw error;
+    }
+};
+
+// Notificaciones
+export const getNotifications = async () => {
+    try {
+        const userId = auth.currentUser.uid;
+        const notificationsRef = ref(database, `users/${userId}/notifications`);
+        const snapshot = await get(notificationsRef);
+
+        if (snapshot.exists()) {
+            const notificationsObj = snapshot.val();
+            // Convertir el objeto en un array con IDs
+            return Object.keys(notificationsObj).map(key => ({
+                id: key,
+                ...notificationsObj[key]
+            }));
+        } else {
+            return [];
+        }
+    } catch (error) {
+        console.error('Error al obtener notificaciones:', error);
+        throw error;
+    }
+};
+
+export const deleteNotification = async (notificationId) => {
+    try {
+        const userId = auth.currentUser.uid;
+        const notificationRef = ref(database, `users/${userId}/notifications/${notificationId}`);
+        await set(notificationRef, null);
+        return true;
+    } catch (error) {
+        console.error('Error al eliminar notificación:', error);
+        throw error;
+    }
+};
+
+// Perfil de usuario
+export const getUserProfile = async () => {
+    try {
+        const user = auth.currentUser;
+        if (!user) throw new Error('Usuario no autenticado');
+
+        const userRef = ref(database, `users/${user.uid}`);
+        const snapshot = await get(userRef);
+
+        if (snapshot.exists()) {
+            return {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName || snapshot.val().name,
+                photoURL: user.photoURL,
+                ...snapshot.val()
+            };
+        } else {
+            return {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL
+            };
+        }
+    } catch (error) {
+        console.error('Error al obtener perfil de usuario:', error);
+        throw error;
+    }
+};
+
+export const updateUserSettings = async (settingsData) => {
+    try {
+        const userId = auth.currentUser.uid;
+        const settingsRef = ref(database, `users/${userId}/preferences`);
+        await update(settingsRef, settingsData);
+        return true;
+    } catch (error) {
+        console.error('Error al actualizar configuración:', error);
+        throw error;
+    }
+};
+
+// Categorías de productos
+export const getProductCategories = async () => {
+    return ['Alimentos', 'Bebidas', 'Limpieza', 'Otros'];
+};
+
+// Estadísticas
+export const getProductStats = async () => {
+    try {
+        const products = await getProducts();
+
+        const now = new Date();
+        const expiringProducts = products.filter(p => {
+            const expiryDate = new Date(p.expiryDate);
+            const differenceInDays = Math.floor((expiryDate - now) / (1000 * 60 * 60 * 24));
+            return differenceInDays <= 7 && differenceInDays >= 0;
+        });
+
+        const expiredProducts = products.filter(p => new Date(p.expiryDate) < now);
+
+        return {
+            total: products.length,
+            expiring: expiringProducts.length,
+            expired: expiredProducts.length,
+            activeCategories: [...new Set(products.map(p => p.category))],
+        };
+    } catch (error) {
+        console.error('Error al obtener estadísticas:', error);
         throw error;
     }
 }; 

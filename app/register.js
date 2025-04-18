@@ -136,7 +136,7 @@ const Register = () => {
         try {
             setLoading(true);
             await signInAnonymously();
-            router.replace('/');
+            router.replace('/(tabs)/products');
         } catch (error) {
             console.error('Error al iniciar sesión como anónimo:', error);
             Alert.alert('Error de autenticación', 'No se pudo iniciar sesión como anónimo');

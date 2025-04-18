@@ -19,6 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 // Registrar el redireccionamiento para autenticación web
 WebBrowser.maybeCompleteAuthSession();
@@ -31,6 +32,7 @@ const Register = () => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const navigation = useNavigation();
+    const router = useRouter();
 
     // Configuración de autenticación con Google
     const [request, response, promptAsync] = Google.useAuthRequest({
@@ -136,7 +138,7 @@ const Register = () => {
         try {
             setLoading(true);
             await signInAnonymously();
-            // La navegación se maneja automáticamente en el AppNavigator
+            router.replace('/(tabs)/products');
         } catch (error) {
             console.error('Error al iniciar sesión como anónimo:', error);
             Alert.alert('Error de autenticación', 'No se pudo iniciar sesión como anónimo');

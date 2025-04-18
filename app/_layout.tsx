@@ -13,8 +13,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-// Definir el tema personalizado
-const theme = {
+// Definir el tema personalizado de Ordinem
+const OrdinemTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
@@ -23,6 +23,18 @@ const theme = {
     text: '#1F1F3C',
     card: '#FFFFFF',
     border: '#E1E1E8',
+  },
+};
+
+// Definir el tema oscuro personalizado
+const OrdinemDarkTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: '#6D9EBE',
+    card: '#1E1E1E',
+    text: '#F2F2F7',
+    border: '#333333',
   },
 };
 
@@ -43,31 +55,33 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+    <ThemeProvider value={colorScheme === 'dark' ? OrdinemDarkTheme : OrdinemTheme}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="register" />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
+        <Stack.Screen name="+not-found" options={{ title: 'No encontrado' }} />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }
 
 export function Layout() {
   return (
-    <ThemeProvider value={theme}>
+    <ThemeProvider value={OrdinemTheme}>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: theme.colors.primary,
+          tabBarActiveTintColor: OrdinemTheme.colors.primary,
           tabBarInactiveTintColor: '#8E8E93',
           tabBarStyle: {
             backgroundColor: '#FFFFFF',
-            borderTopColor: theme.colors.border,
+            borderTopColor: OrdinemTheme.colors.border,
           },
           headerStyle: {
             backgroundColor: '#FFFFFF',
           },
-          headerTintColor: theme.colors.text,
+          headerTintColor: OrdinemTheme.colors.text,
         }}
       >
         <Tabs.Screen
