@@ -81,7 +81,7 @@ const Login = () => {
                 <View style={styles.inner}>
                     <View style={styles.logoContainer}>
                         <Image
-                            source={require('../assets/ordinem-logo.png')}
+                            source={require('../assets/images/ordinem-logo.png')}
                             style={styles.logo}
                             resizeMode="contain"
                         />

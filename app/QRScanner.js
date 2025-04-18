@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { Camera } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import { validatePairingQR } from '../utils/crypto';
 import { pairDevice } from '../services/firebase';
@@ -15,12 +15,12 @@ const QRScanner = () => {
 
     // Solicitar permiso de cámara al montar el componente
     useEffect(() => {
-        const getBarCodeScannerPermissions = async () => {
-            const { status } = await BarCodeScanner.requestPermissionsAsync();
+        const getCameraPermissions = async () => {
+            const { status } = await Camera.requestCameraPermissionsAsync();
             setHasPermission(status === 'granted');
         };
 
-        getBarCodeScannerPermissions();
+        getCameraPermissions();
     }, []);
 
     // Manejar el escaneo de códigos QR
@@ -94,7 +94,7 @@ const QRScanner = () => {
                 </Text>
                 <TouchableOpacity
                     style={styles.button}
-                    onPress={() => BarCodeScanner.requestPermissionsAsync()}
+                    onPress={() => Camera.requestCameraPermissionsAsync()}
                 >
                     <Text style={styles.buttonText}>Solicitar permisos</Text>
                 </TouchableOpacity>
@@ -104,9 +104,12 @@ const QRScanner = () => {
 
     return (
         <View style={styles.container}>
-            <BarCodeScanner
-                onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+            <Camera
                 style={styles.scanner}
+                onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+                barCodeScannerSettings={{
+                    barCodeTypes: ['qr'],
+                }}
             />
 
             <View style={styles.overlay}>
