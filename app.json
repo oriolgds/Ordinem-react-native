@@ -12,16 +12,20 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Necesitamos acceso a la cámara para escanear códigos QR"
-      }
+      },
+      "bundleIdentifier": "com.ordinem.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
+      "package": "com.ordinem.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
         "CAMERA"
-      ]
+      ],
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -43,6 +47,17 @@
         "expo-camera",
         {
           "cameraPermission": "Ordinem necesita acceso a la cámara para escanear códigos QR."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          },
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ]
     ],

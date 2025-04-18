@@ -1,23 +1,27 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getDatabase, ref, set, get, update } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuración de Firebase
 const firebaseConfig = {
-    // Estos valores deberían ser reemplazados con los valores reales de tu proyecto Firebase
-    apiKey: "YOUR_API_KEY",
-    authDomain: "ordinem.firebaseapp.com",
-    databaseURL: "https://ordinem-default-rtdb.firebaseio.com",
-    projectId: "ordinem",
-    storageBucket: "ordinem.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyBMjLGzxH6OVDszHfEHGVS5N_SlsU9aDeA",
+    authDomain: "ordinem-app.firebaseapp.com",
+    databaseURL: "https://ordinem-app-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "ordinem-app",
+    storageBucket: "ordinem-app.firebasestorage.app",
+    messagingSenderId: "447748932648",
+    appId: "1:447748932648:android:ed963e8484de7fb675611d"
 };
 
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+
+// Inicializar Auth con persistencia en AsyncStorage
+const auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage)
+});
+
 const database = getDatabase(app);
 
 // Exportar las instancias de Firebase
