@@ -1,0 +1,164 @@
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getDatabase, ref, set, get, update } from 'firebase/database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Configuración de Firebase
+const firebaseConfig = {
+    // Estos valores deberían ser reemplazados con los valores reales de tu proyecto Firebase
+    apiKey: "YOUR_API_KEY",
+    authDomain: "ordinem.firebaseapp.com",
+    databaseURL: "https://ordinem-default-rtdb.firebaseio.com",
+    projectId: "ordinem",
+    storageBucket: "ordinem.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const database = getDatabase(app);
+
+// Exportar las instancias de Firebase
+export { app, auth, database };
+
+// Funciones para interactuar con Firebase
+
+// Autenticación de usuario
+export const signInWithEmail = async (email, password) => {
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        return userCredential.user;
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const createUserWithEmail = async (email, password, name) => {
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Guardar información adicional del usuario
+        await set(ref(database, `users/${user.uid}`), {
+            name: name,
+            email: email,
+            devices: {},
+            preferences: {
+                notifications_enabled: true,
+                notification_threshold: 3, // días por defecto
+                theme: 'light'
+            }
+        });
+
+        return user;
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const signOut = async () => {
+    try {
+        await auth.signOut();
+        await AsyncStorage.removeItem('user');
+    } catch (error) {
+        throw error;
+    }
+};
+
+// Operaciones de base de datos
+export const getUserData = async (userId) => {
+    try {
+        const userRef = ref(database, `users/${userId}`);
+        const snapshot = await get(userRef);
+
+        if (snapshot.exists()) {
+            return snapshot.val();
+        } else {
+            throw new Error("User data not found");
+        }
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const getUserDevices = async (userId) => {
+    try {
+        const devicesRef = ref(database, `users/${userId}/devices`);
+        const snapshot = await get(devicesRef);
+
+        if (snapshot.exists()) {
+            return snapshot.val();
+        } else {
+            return {};
+        }
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const getDeviceProducts = async (deviceId) => {
+    try {
+        const productsRef = ref(database, `devices/${deviceId}/products`);
+        const snapshot = await get(productsRef);
+
+        if (snapshot.exists()) {
+            return snapshot.val();
+        } else {
+            return {};
+        }
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const pairDevice = async (userId, deviceId) => {
+    try {
+        await set(ref(database, `users/${userId}/devices/${deviceId}`), true);
+        return true;
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const getProductFromCache = async (barcode) => {
+    try {
+        const productRef = ref(database, `product_cache/${barcode}`);
+        const snapshot = await get(productRef);
+
+        if (snapshot.exists()) {
+            return snapshot.val();
+        } else {
+            return null;
+        }
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const getUserNotifications = async (userId) => {
+    try {
+        const notificationsRef = ref(database, `notifications/${userId}`);
+        const snapshot = await get(notificationsRef);
+
+        if (snapshot.exists()) {
+            return snapshot.val();
+        } else {
+            return {};
+        }
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const markNotificationAsRead = async (userId, notificationId) => {
+    try {
+        await update(ref(database, `notifications/${userId}/${notificationId}`), {
+            read: true
+        });
+        return true;
+    } catch (error) {
+        throw error;
+    }
+}; 
