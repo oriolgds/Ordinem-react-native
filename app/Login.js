@@ -235,6 +235,7 @@ const Login = () => {
                             onPress={handleAnonymousSignIn}
                             disabled={loading}
                         >
+                            <Ionicons name="person-outline" size={22} color="#555" style={styles.anonymousIcon} />
                             <Text style={styles.anonymousButtonText}>Continuar como anónimo</Text>
                         </TouchableOpacity>
 
@@ -365,42 +366,46 @@ const styles = StyleSheet.create({
     },
     googleButton: {
         flexDirection: 'row',
-        backgroundColor: 'white',
-        borderWidth: 1,
-        borderColor: '#DDD',
-        height: 50,
-        borderRadius: 12,
-        justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 12,
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        paddingVertical: 12,
+        marginVertical: 8,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
-        elevation: 1,
+        elevation: 2,
     },
     googleIcon: {
-        width: 24,
-        height: 24,
         marginRight: 10,
     },
     googleButtonText: {
-        color: '#555',
         fontSize: 16,
+        color: '#444',
         fontWeight: '500',
     },
     anonymousButton: {
-        height: 50,
-        borderRadius: 12,
-        justifyContent: 'center',
+        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
+        justifyContent: 'center',
+        backgroundColor: '#f5f5f5',
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 8,
+        paddingVertical: 12,
+        marginVertical: 8,
+    },
+    anonymousIcon: {
+        marginRight: 10,
     },
     anonymousButtonText: {
-        color: '#666',
         fontSize: 16,
+        color: '#555',
         fontWeight: '500',
-        textDecorationLine: 'underline',
     },
 });
 
