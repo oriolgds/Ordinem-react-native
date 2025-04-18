@@ -13,8 +13,14 @@ import {
     Keyboard,
     Alert
 } from 'react-native';
-import { signInWithEmail } from '../services/firebase';
-import { useNavigation } from '@react-navigation/native';
+import { signInWithEmail, signInWithGoogle, signInAnonymously, resetPassword } from '../services/firebase';
+import { useNavigation, useRouter } from '@react-navigation/native';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
+
+// Registrar el redireccionamiento para autenticación web
+WebBrowser.maybeCompleteAuthSession();
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -22,6 +28,22 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const navigation = useNavigation();
+    const router = useRouter();
+
+    // Configuración de autenticación con Google
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        expoClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+        androidClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+        webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+    });
+
+    // Manejar la respuesta de Google
+    React.useEffect(() => {
+        if (response?.type === 'success') {
+            const { id_token } = response.params;
+            handleGoogleSignIn(id_token);
+        }
+    }, [response]);
 
     // Validar formulario
     const validateForm = () => {
@@ -55,7 +77,7 @@ const Login = () => {
         try {
             setLoading(true);
             await signInWithEmail(email, password);
-            // La navegación se maneja automáticamente en el AppNavigator
+            router.replace('/');
         } catch (error) {
             console.error('Error al iniciar sesión:', error);
 
@@ -64,9 +86,68 @@ const Login = () => {
                 errorMessage = 'Email o contraseña incorrectos';
             } else if (error.code === 'auth/too-many-requests') {
                 errorMessage = 'Demasiados intentos fallidos. Intenta más tarde';
+            } else if (error.code === 'auth/email-not-verified') {
+                errorMessage = 'Por favor, verifica tu correo electrónico antes de iniciar sesión';
             }
 
             Alert.alert('Error de autenticación', errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Iniciar sesión con Google
+    const handleGoogleSignIn = async (idToken) => {
+        try {
+            setLoading(true);
+            await signInWithGoogle(idToken);
+            // La navegación se maneja automáticamente en el AppNavigator
+        } catch (error) {
+            console.error('Error al iniciar sesión con Google:', error);
+            Alert.alert('Error de autenticación', 'No se pudo iniciar sesión con Google');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Iniciar sesión como anónimo
+    const handleAnonymousSignIn = async () => {
+        try {
+            setLoading(true);
+            await signInAnonymously();
+            // La navegación se maneja automáticamente en el AppNavigator
+        } catch (error) {
+            console.error('Error al iniciar sesión como anónimo:', error);
+            Alert.alert('Error de autenticación', 'No se pudo iniciar sesión como anónimo');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Manejar el olvido de contraseña
+    const handleForgotPassword = async () => {
+        if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
+            Alert.alert(
+                'Email requerido',
+                'Por favor, introduce un email válido para restablecer tu contraseña'
+            );
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await resetPassword(email);
+            Alert.alert(
+                'Restablecimiento de contraseña',
+                'Se ha enviado un correo electrónico con instrucciones para restablecer tu contraseña'
+            );
+        } catch (error) {
+            console.error('Error al restablecer contraseña:', error);
+            let errorMessage = 'No se pudo enviar el correo de restablecimiento';
+            if (error.code === 'auth/user-not-found') {
+                errorMessage = 'No existe ninguna cuenta con este email';
+            }
+            Alert.alert('Error', errorMessage);
         } finally {
             setLoading(false);
         }
@@ -80,11 +161,7 @@ const Login = () => {
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.inner}>
                     <View style={styles.logoContainer}>
-                        <Image
-                            source={require('../assets/images/ordinem-logo.png')}
-                            style={styles.logo}
-                            resizeMode="contain"
-                        />
+                        <Ionicons name="cube" size={80} color="#6D9EBE" style={styles.logo} />
                         <Text style={styles.title}>Ordinem</Text>
                         <Text style={styles.subtitle}>Sistema de gestión de productos</Text>
                     </View>
@@ -118,6 +195,12 @@ const Login = () => {
                             {errors.password && (
                                 <Text style={styles.errorText}>{errors.password}</Text>
                             )}
+                            <TouchableOpacity
+                                style={styles.forgotPasswordLink}
+                                onPress={handleForgotPassword}
+                            >
+                                <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+                            </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity
@@ -132,9 +215,32 @@ const Login = () => {
                             )}
                         </TouchableOpacity>
 
+                        <View style={styles.separatorContainer}>
+                            <View style={styles.separator} />
+                            <Text style={styles.separatorText}>O</Text>
+                            <View style={styles.separator} />
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.googleButton}
+                            onPress={() => promptAsync()}
+                            disabled={loading}
+                        >
+                            <Ionicons name="logo-google" size={24} color="#DB4437" style={styles.googleIcon} />
+                            <Text style={styles.googleButtonText}>Continuar con Google</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.anonymousButton}
+                            onPress={handleAnonymousSignIn}
+                            disabled={loading}
+                        >
+                            <Text style={styles.anonymousButtonText}>Continuar como anónimo</Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                             style={styles.registerLink}
-                            onPress={() => navigation.navigate('Register')}
+                            onPress={() => router.push('/register')}
                         >
                             <Text style={styles.registerText}>
                                 ¿No tienes cuenta? <Text style={styles.registerTextBold}>Regístrate</Text>
@@ -162,8 +268,6 @@ const styles = StyleSheet.create({
         marginBottom: 40,
     },
     logo: {
-        width: 100,
-        height: 100,
         marginBottom: 16,
     },
     title: {
@@ -235,6 +339,68 @@ const styles = StyleSheet.create({
     registerTextBold: {
         fontWeight: 'bold',
         color: '#6D9EBE',
+    },
+    forgotPasswordLink: {
+        alignSelf: 'flex-end',
+        marginTop: 8,
+    },
+    forgotPasswordText: {
+        color: '#6D9EBE',
+        fontSize: 14,
+    },
+    separatorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 20,
+    },
+    separator: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#E0E0E0',
+    },
+    separatorText: {
+        marginHorizontal: 10,
+        color: '#888',
+        fontSize: 14,
+    },
+    googleButton: {
+        flexDirection: 'row',
+        backgroundColor: 'white',
+        borderWidth: 1,
+        borderColor: '#DDD',
+        height: 50,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    googleIcon: {
+        width: 24,
+        height: 24,
+        marginRight: 10,
+    },
+    googleButtonText: {
+        color: '#555',
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    anonymousButton: {
+        height: 50,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    anonymousButtonText: {
+        color: '#666',
+        fontSize: 16,
+        fontWeight: '500',
+        textDecorationLine: 'underline',
     },
 });
 

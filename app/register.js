@@ -5,17 +5,17 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Image,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
     TouchableWithoutFeedback,
     Keyboard,
     Alert,
-    ScrollView
+    ScrollView,
+    Image
 } from 'react-native';
 import { createUserWithEmail, signInWithGoogle, signInAnonymously } from '../services/firebase';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,7 +30,7 @@ const Register = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
-    const navigation = useNavigation();
+    const router = useRouter();
 
     // Configuración de autenticación con Google
     const [request, response, promptAsync] = Google.useAuthRequest({
@@ -96,7 +96,7 @@ const Register = () => {
                 "Verificación de correo electrónico",
                 "Se ha enviado un correo de verificación a tu dirección de email. Por favor, verifica tu cuenta antes de iniciar sesión.",
                 [
-                    { text: "OK", onPress: () => navigation.navigate('Login') }
+                    { text: "OK", onPress: () => router.replace('/') }
                 ]
             );
         } catch (error) {
@@ -122,7 +122,7 @@ const Register = () => {
         try {
             setLoading(true);
             await signInWithGoogle(idToken);
-            // La navegación se maneja automáticamente en el AppNavigator
+            router.replace('/');
         } catch (error) {
             console.error('Error al iniciar sesión con Google:', error);
             Alert.alert('Error de autenticación', 'No se pudo iniciar sesión con Google');
@@ -136,7 +136,7 @@ const Register = () => {
         try {
             setLoading(true);
             await signInAnonymously();
-            // La navegación se maneja automáticamente en el AppNavigator
+            router.replace('/');
         } catch (error) {
             console.error('Error al iniciar sesión como anónimo:', error);
             Alert.alert('Error de autenticación', 'No se pudo iniciar sesión como anónimo');
@@ -155,7 +155,7 @@ const Register = () => {
                     <View style={styles.inner}>
                         <View style={styles.logoContainer}>
                             <Image
-                                source={require('@/assets/images/ordinem-logo.png')}
+                                source={require('../assets/images/ordinem-logo.png')}
                                 style={styles.logo}
                                 resizeMode="contain"
                             />
@@ -259,7 +259,7 @@ const Register = () => {
 
                             <TouchableOpacity
                                 style={styles.loginLink}
-                                onPress={() => navigation.navigate('Login')}
+                                onPress={() => router.replace('/')}
                             >
                                 <Text style={styles.loginText}>
                                     ¿Ya tienes cuenta? <Text style={styles.loginTextBold}>Inicia sesión</Text>
@@ -292,8 +292,8 @@ const styles = StyleSheet.create({
         marginBottom: 30,
     },
     logo: {
-        width: 80,
-        height: 80,
+        width: 120,
+        height: 120,
         marginBottom: 16,
     },
     title: {

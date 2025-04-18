@@ -1,5 +1,16 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import {
+    getAuth,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signInWithCredential,
+    GoogleAuthProvider,
+    signInAnonymously as firebaseSignInAnonymously,
+    sendEmailVerification,
+    sendPasswordResetEmail,
+    initializeAuth,
+    getReactNativePersistence
+} from 'firebase/auth';
 import { getDatabase, ref, set, get, update } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -17,11 +28,12 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializar Auth con persistencia en AsyncStorage
+// Inicializar Auth con persistencia
 const auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage)
 });
 
+// Inicializar Database
 const database = getDatabase(app);
 
 // Exportar las instancias de Firebase
@@ -33,7 +45,14 @@ export { app, auth, database };
 export const signInWithEmail = async (email, password) => {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        return userCredential.user;
+        const user = userCredential.user;
+
+        // Verificar si el email está verificado
+        if (!user.emailVerified) {
+            throw { code: 'auth/email-not-verified', message: 'Por favor, verifica tu correo electrónico antes de iniciar sesión.' };
+        }
+
+        return user;
     } catch (error) {
         throw error;
     }
@@ -43,6 +62,9 @@ export const createUserWithEmail = async (email, password, name) => {
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
+
+        // Enviar correo de verificación
+        await sendEmailVerification(user);
 
         // Guardar información adicional del usuario
         await set(ref(database, `users/${user.uid}`), {
@@ -57,6 +79,81 @@ export const createUserWithEmail = async (email, password, name) => {
         });
 
         return user;
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const signInWithGoogle = async (idToken) => {
+    try {
+        // Crear credencial para Google
+        const credential = GoogleAuthProvider.credential(idToken);
+
+        // Iniciar sesión con las credenciales
+        const userCredential = await signInWithCredential(auth, credential);
+        const user = userCredential.user;
+
+        // Comprobar si el usuario ya existe en la base de datos
+        const userRef = ref(database, `users/${user.uid}`);
+        const snapshot = await get(userRef);
+
+        // Si el usuario no existe, guardamos su información
+        if (!snapshot.exists()) {
+            await set(userRef, {
+                name: user.displayName || '',
+                email: user.email || '',
+                devices: {},
+                preferences: {
+                    notifications_enabled: true,
+                    notification_threshold: 3,
+                    theme: 'light'
+                }
+            });
+        }
+
+        return user;
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const signInAnonymously = async () => {
+    try {
+        const userCredential = await firebaseSignInAnonymously(auth);
+        const user = userCredential.user;
+
+        // Guardar información básica del usuario anónimo
+        await set(ref(database, `users/${user.uid}`), {
+            name: 'Usuario Anónimo',
+            email: '',
+            isAnonymous: true,
+            devices: {},
+            preferences: {
+                notifications_enabled: true,
+                notification_threshold: 3,
+                theme: 'light'
+            }
+        });
+
+        return user;
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const sendVerificationEmail = async (user) => {
+    try {
+        await sendEmailVerification(user);
+        return true;
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const resetPassword = async (email) => {
+    try {
+        await sendPasswordResetEmail(auth, email);
+        return true;
     } catch (error) {
         throw error;
     }
