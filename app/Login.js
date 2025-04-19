@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -11,39 +11,51 @@ import {
     Platform,
     TouchableWithoutFeedback,
     Keyboard,
-    Alert
+    Alert,
+    ScrollView
 } from 'react-native';
 import { signInWithEmail, signInWithGoogle, signInAnonymously, resetPassword } from '../services/firebase';
-import { useNavigation, useRouter } from '@react-navigation/native';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 
-// Registrar el redireccionamiento para autenticación web
-WebBrowser.maybeCompleteAuthSession();
+// Función para detectar si estamos en Expo Go
+const isExpoGo = Constants.appOwnership === 'expo';
+
+// Importación condicional de Google SignIn
+let GoogleSignin;
+let GoogleSigninButton;
+let statusCodes;
+
+// Solo importamos la biblioteca si NO estamos en Expo Go
+if (!isExpoGo) {
+    try {
+        const GoogleSignInModule = require('@react-native-google-signin/google-signin');
+        GoogleSignin = GoogleSignInModule.GoogleSignin;
+        GoogleSigninButton = GoogleSignInModule.GoogleSigninButton;
+        statusCodes = GoogleSignInModule.statusCodes;
+    } catch (error) {
+        console.warn('Google SignIn no está disponible', error);
+    }
+}
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
-    const navigation = useNavigation();
     const router = useRouter();
 
-    // Configuración de autenticación con Google
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        expoClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
-        androidClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
-        webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
-    });
-
-    // Manejar la respuesta de Google
-    React.useEffect(() => {
-        if (response?.type === 'success') {
-            const { id_token } = response.params;
-            handleGoogleSignIn(id_token);
+    // Configuración de Google Sign-In si está disponible
+    useEffect(() => {
+        if (GoogleSignin && !isExpoGo) {
+            GoogleSignin.configure({
+                webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+                offlineAccess: true,
+                scopes: ['profile', 'email']
+            });
         }
-    }, [response]);
+    }, []);
 
     // Validar formulario
     const validateForm = () => {
@@ -77,7 +89,7 @@ const Login = () => {
         try {
             setLoading(true);
             await signInWithEmail(email, password);
-            router.replace('/');
+            router.replace('/(tabs)/products');
         } catch (error) {
             console.error('Error al iniciar sesión:', error);
 
@@ -96,15 +108,51 @@ const Login = () => {
         }
     };
 
-    // Iniciar sesión con Google
-    const handleGoogleSignIn = async (idToken) => {
+    // Iniciar sesión con Google - adaptado para funcionar en cualquier entorno
+    const handleGoogleSignIn = async () => {
         try {
             setLoading(true);
-            await signInWithGoogle(idToken);
-            // La navegación se maneja automáticamente en el AppNavigator
+            
+            // Si estamos en Expo Go, mostramos un mensaje
+            if (isExpoGo) {
+                Alert.alert(
+                    'No disponible en Expo Go',
+                    'El inicio de sesión con Google no está disponible en Expo Go. Por favor, utiliza un Development Build para probar esta funcionalidad.',
+                    [{ text: 'Entendido' }]
+                );
+                return;
+            }
+            
+            // Si Google SignIn está disponible, lo usamos
+            if (GoogleSignin) {
+                await GoogleSignin.hasPlayServices();
+                const userInfo = await GoogleSignin.signIn();
+                
+                // Pasar el idToken a Firebase para autenticar
+                if (userInfo.idToken) {
+                    await signInWithGoogle(userInfo.idToken);
+                    router.replace('/(tabs)/products');
+                } else {
+                    throw new Error('No se pudo obtener el token de ID');
+                }
+            } else {
+                throw new Error('Google SignIn no está disponible');
+            }
         } catch (error) {
             console.error('Error al iniciar sesión con Google:', error);
-            Alert.alert('Error de autenticación', 'No se pudo iniciar sesión con Google');
+            
+            let errorMessage = 'No se pudo iniciar sesión con Google';
+            if (GoogleSignin && statusCodes) {
+                if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+                    errorMessage = 'Inicio de sesión cancelado';
+                } else if (error.code === statusCodes.IN_PROGRESS) {
+                    errorMessage = 'Inicio de sesión en progreso';
+                } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+                    errorMessage = 'Google Play Services no está disponible';
+                }
+            }
+            
+            Alert.alert('Error de autenticación', errorMessage);
         } finally {
             setLoading(false);
         }
@@ -153,103 +201,133 @@ const Login = () => {
         }
     };
 
+    // Renderizar botón de Google según el entorno
+    const renderGoogleButton = () => {
+        if (isExpoGo || !GoogleSigninButton) {
+            // Botón personalizado para Expo Go
+            return (
+                <TouchableOpacity
+                    style={styles.googleButton}
+                    onPress={handleGoogleSignIn}
+                    disabled={loading}
+                >
+                    <Ionicons name="logo-google" size={24} color="#DB4437" style={styles.googleIcon} />
+                    <Text style={styles.googleButtonText}>Continuar con Google</Text>
+                </TouchableOpacity>
+            );
+        } else {
+            // Botón nativo para Development Build
+            return (
+                <GoogleSigninButton
+                    style={styles.googleSigninButton}
+                    size={GoogleSigninButton.Size.Wide}
+                    color={GoogleSigninButton.Color.Light}
+                    onPress={handleGoogleSignIn}
+                    disabled={loading}
+                />
+            );
+        }
+    };
+
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}
         >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.inner}>
-                    <View style={styles.logoContainer}>
-                        <Ionicons name="cube" size={80} color="#6D9EBE" style={styles.logo} />
-                        <Text style={styles.title}>Ordinem</Text>
-                        <Text style={styles.subtitle}>Sistema de gestión de productos</Text>
-                    </View>
-
-                    <View style={styles.formContainer}>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Email</Text>
-                            <TextInput
-                                style={[styles.input, errors.email && styles.inputError]}
-                                placeholder="tu.email@ejemplo.com"
-                                value={email}
-                                onChangeText={setEmail}
-                                keyboardType="email-address"
-                                autoCapitalize="none"
-                                autoCorrect={false}
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                    <View style={styles.inner}>
+                        <View style={styles.logoContainer}>
+                            <Image
+                                source={require('@/assets/images/ordinem-logo.png')}
+                                style={styles.logo}
+                                resizeMode="contain"
                             />
-                            {errors.email && (
-                                <Text style={styles.errorText}>{errors.email}</Text>
-                            )}
+                            <Text style={styles.title}>Ordinem</Text>
+                            <Text style={styles.subtitle}>Sistema de gestión de productos</Text>
                         </View>
 
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Contraseña</Text>
-                            <TextInput
-                                style={[styles.input, errors.password && styles.inputError]}
-                                placeholder="Tu contraseña"
-                                value={password}
-                                onChangeText={setPassword}
-                                secureTextEntry
-                            />
-                            {errors.password && (
-                                <Text style={styles.errorText}>{errors.password}</Text>
-                            )}
+                        <View style={styles.formContainer}>
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.label}>Email</Text>
+                                <TextInput
+                                    style={[styles.input, errors.email && styles.inputError]}
+                                    placeholder="tu.email@ejemplo.com"
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                />
+                                {errors.email && (
+                                    <Text style={styles.errorText}>{errors.email}</Text>
+                                )}
+                            </View>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.label}>Contraseña</Text>
+                                <TextInput
+                                    style={[styles.input, errors.password && styles.inputError]}
+                                    placeholder="Tu contraseña"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry
+                                />
+                                {errors.password && (
+                                    <Text style={styles.errorText}>{errors.password}</Text>
+                                )}
+                                <TouchableOpacity
+                                    style={styles.forgotPasswordLink}
+                                    onPress={handleForgotPassword}
+                                >
+                                    <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+                                </TouchableOpacity>
+                            </View>
+
                             <TouchableOpacity
-                                style={styles.forgotPasswordLink}
-                                onPress={handleForgotPassword}
+                                style={styles.loginButton}
+                                onPress={handleLogin}
+                                disabled={loading}
                             >
-                                <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+                                {loading ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+                                )}
+                            </TouchableOpacity>
+
+                            <View style={styles.separatorContainer}>
+                                <View style={styles.separator} />
+                                <Text style={styles.separatorText}>O</Text>
+                                <View style={styles.separator} />
+                            </View>
+
+                            {renderGoogleButton()}
+
+                            <TouchableOpacity
+                                style={styles.anonymousButton}
+                                onPress={handleAnonymousSignIn}
+                                disabled={loading}
+                            >
+                                <Ionicons name="person-outline" size={24} color="#555" style={styles.socialIcon} />
+                                <Text style={styles.anonymousButtonText}>Continuar como anónimo</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.registerLink}
+                                onPress={() => router.push('/register')}
+                            >
+                                <Text style={styles.registerText}>
+                                    ¿No tienes cuenta? <Text style={styles.registerTextBold}>Regístrate</Text>
+                                </Text>
                             </TouchableOpacity>
                         </View>
-
-                        <TouchableOpacity
-                            style={styles.loginButton}
-                            onPress={handleLogin}
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator size="small" color="white" />
-                            ) : (
-                                <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
-                            )}
-                        </TouchableOpacity>
-
-                        <View style={styles.separatorContainer}>
-                            <View style={styles.separator} />
-                            <Text style={styles.separatorText}>O</Text>
-                            <View style={styles.separator} />
-                        </View>
-
-                        <TouchableOpacity
-                            style={styles.googleButton}
-                            onPress={() => promptAsync()}
-                            disabled={loading}
-                        >
-                            <Ionicons name="logo-google" size={24} color="#DB4437" style={styles.googleIcon} />
-                            <Text style={styles.googleButtonText}>Continuar con Google</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.anonymousButton}
-                            onPress={handleAnonymousSignIn}
-                            disabled={loading}
-                        >
-                            <Ionicons name="person-outline" size={22} color="#555" style={styles.anonymousIcon} />
-                            <Text style={styles.anonymousButtonText}>Continuar como anónimo</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.registerLink}
-                            onPress={() => router.push('/register')}
-                        >
-                            <Text style={styles.registerText}>
-                                ¿No tienes cuenta? <Text style={styles.registerTextBold}>Regístrate</Text>
-                            </Text>
-                        </TouchableOpacity>
                     </View>
-                </View>
-            </TouchableWithoutFeedback>
+                </TouchableWithoutFeedback>
+            </ScrollView>
         </KeyboardAvoidingView>
     );
 };
@@ -258,6 +336,9 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: 'white',
+    },
+    scrollContent: {
+        flexGrow: 1,
     },
     inner: {
         flex: 1,
@@ -269,6 +350,8 @@ const styles = StyleSheet.create({
         marginBottom: 40,
     },
     logo: {
+        width: 120,
+        height: 120,
         marginBottom: 16,
     },
     title: {
@@ -284,6 +367,7 @@ const styles = StyleSheet.create({
     },
     formContainer: {
         width: '100%',
+        paddingHorizontal: 20,
     },
     inputContainer: {
         marginBottom: 20,
@@ -352,7 +436,7 @@ const styles = StyleSheet.create({
     separatorContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: 20,
+        marginVertical: 16,
     },
     separator: {
         flex: 1,
@@ -360,9 +444,25 @@ const styles = StyleSheet.create({
         backgroundColor: '#E0E0E0',
     },
     separatorText: {
-        marginHorizontal: 10,
+        marginHorizontal: 8,
         color: '#888',
         fontSize: 14,
+    },
+    socialButtonsContainer: {
+        width: '100%',
+        marginTop: 20,
+    },
+    socialIcon: {
+        marginRight: 10,
+    },
+    socialButtonText: {
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    googleSigninButton: {
+        width: '100%',
+        height: 48,
+        marginVertical: 8,
     },
     googleButton: {
         flexDirection: 'row',
@@ -398,13 +498,15 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         paddingVertical: 12,
         marginVertical: 8,
-    },
-    anonymousIcon: {
-        marginRight: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
     },
     anonymousButtonText: {
         fontSize: 16,
-        color: '#555',
+        color: '#444',
         fontWeight: '500',
     },
 });

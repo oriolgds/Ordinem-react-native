@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "447748932648",
+    "firebase_url": "https://ordinem-app-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "ordinem-app",
+    "storage_bucket": "ordinem-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447748932648:android:ed963e8484de7fb675611d",
+        "android_client_info": {
+          "package_name": "com.ordinem.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMjLGzxH6OVDszHfEHGVS5N_SlsU9aDeA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

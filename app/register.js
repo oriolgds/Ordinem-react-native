@@ -234,28 +234,6 @@ const Register = () => {
                                 )}
                             </TouchableOpacity>
 
-                            <View style={styles.separatorContainer}>
-                                <View style={styles.separator} />
-                                <Text style={styles.separatorText}>O</Text>
-                                <View style={styles.separator} />
-                            </View>
-
-                            <TouchableOpacity
-                                style={styles.googleButton}
-                                onPress={() => promptAsync()}
-                                disabled={loading}
-                            >
-                                <Ionicons name="logo-google" size={24} color="#DB4437" style={styles.googleIcon} />
-                                <Text style={styles.googleButtonText}>Continuar con Google</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={styles.anonymousButton}
-                                onPress={handleAnonymousSignIn}
-                                disabled={loading}
-                            >
-                                <Text style={styles.anonymousButtonText}>Continuar como anónimo</Text>
-                            </TouchableOpacity>
 
                             <TouchableOpacity
                                 style={styles.loginLink}

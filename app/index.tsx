@@ -14,148 +14,18 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { signInWithEmail } from '@/services/firebase';
+import { signInWithEmail, signInWithGoogle } from '@/services/firebase';
 import { useAuth } from '@/hooks/useAuth';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
+import { Redirect } from 'expo-router';
 
-export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
-  const router = useRouter();
-  const { redirectIfAuthenticated } = useAuth();
+// Registrar el redireccionamiento para autenticación web
+WebBrowser.maybeCompleteAuthSession();
 
-  // Comprobar si el usuario ya está autenticado
-  useEffect(() => {
-    redirectIfAuthenticated();
-  }, []);
-
-  const validateForm = () => {
-    let isValid = true;
-    const newErrors: {email?: string; password?: string} = {};
-
-    if (!email.trim()) {
-      newErrors.email = 'El email es obligatorio';
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email inválido';
-      isValid = false;
-    }
-
-    if (!password) {
-      newErrors.password = 'La contraseña es obligatoria';
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const handleLogin = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setLoading(true);
-      await signInWithEmail(email, password);
-      router.replace('/(tabs)/products');
-    } catch (error: any) {
-      console.error('Error al iniciar sesión:', error);
-
-      let errorMessage = 'Ocurrió un error al iniciar sesión';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        errorMessage = 'Email o contraseña incorrectos';
-      } else if (error.code === 'auth/too-many-requests') {
-        errorMessage = 'Demasiados intentos fallidos. Intenta más tarde';
-      } else if (error.code === 'auth/email-not-verified') {
-        errorMessage = 'Por favor, verifica tu correo electrónico antes de iniciar sesión';
-      }
-
-      Alert.alert('Error de autenticación', errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={styles.inner}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('@/assets/images/ordinem-logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            <Text style={styles.title}>Ordinem</Text>
-            <Text style={styles.subtitle}>Sistema de gestión de productos</Text>
-          </View>
-
-          <View style={styles.formContainer}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
-                placeholder="tu.email@ejemplo.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {errors.email && (
-                <Text style={styles.errorText}>{errors.email}</Text>
-              )}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Contraseña</Text>
-              <TextInput
-                style={[styles.input, errors.password && styles.inputError]}
-                placeholder="Tu contraseña"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-              {errors.password && (
-                <Text style={styles.errorText}>{errors.password}</Text>
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={styles.forgotPassword}
-              onPress={() => router.push('/reset-password')}
-            >
-              <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.registerLink}
-              onPress={() => router.push('/register')}
-            >
-              <Text style={styles.registerText}>
-                ¿No tienes cuenta? <Text style={styles.registerTextBold}>Regístrate</Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
-  );
+export default function Index() {
+  return <Redirect href="/Login" />;
 }
 
 const styles = StyleSheet.create({
@@ -254,5 +124,44 @@ const styles = StyleSheet.create({
   registerTextBold: {
     fontWeight: 'bold',
     color: '#6D9EBE',
+  },
+  separatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  separator: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E0E0E0',
+  },
+  separatorText: {
+    marginHorizontal: 10,
+    color: '#888',
+    fontSize: 14,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingVertical: 12,
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  googleIcon: {
+    marginRight: 10,
+  },
+  googleButtonText: {
+    fontSize: 16,
+    color: '#444',
+    fontWeight: '500',
   },
 }); 
