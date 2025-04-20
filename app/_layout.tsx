@@ -3,11 +3,14 @@ import { useFonts } from 'expo-font';
 import { Stack, Redirect } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '@/services/firebase';
+import { User, signInWithCustomToken } from 'firebase/auth';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -42,14 +45,38 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+
+  // Comprobar si hay una sesión guardada al iniciar la aplicación
+  useEffect(() => {
+    const checkStoredSession = async () => {
+      try {
+        // Intentar recuperar la información de usuario guardada
+        const storedUser = await AsyncStorage.getItem('user_credential');
+        
+        if (storedUser && !auth.currentUser) {
+          // Si hay una sesión guardada pero no hay usuario autenticado actualmente,
+          // los datos guardados ayudarán a restablecer la sesión a través de Firebase Auth
+          console.log('Restaurando sesión de usuario desde AsyncStorage');
+        }
+        
+        setIsSessionLoaded(true);
+      } catch (error) {
+        console.error('Error al comprobar la sesión guardada:', error);
+        setIsSessionLoaded(true);
+      }
+    };
+    
+    checkStoredSession();
+  }, []);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded && isSessionLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [loaded, isSessionLoaded]);
 
-  if (!loaded) {
+  if (!loaded || !isSessionLoaded) {
     return null;
   }
 

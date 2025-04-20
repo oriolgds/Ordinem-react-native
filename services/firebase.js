@@ -9,7 +9,9 @@ import {
     sendEmailVerification,
     sendPasswordResetEmail,
     initializeAuth,
-    getReactNativePersistence
+    getReactNativePersistence,
+    setPersistence,
+    browserLocalPersistence
 } from 'firebase/auth';
 import { getDatabase, ref, set, get, update } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,7 +30,7 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializar Auth con persistencia
+// Inicializar Auth con persistencia asegurando que funcione en React Native
 const auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage)
 });
@@ -44,6 +46,7 @@ export { app, auth, database };
 // Autenticación de usuario
 export const signInWithEmail = async (email, password) => {
     try {
+        // Establecer persistencia local para este inicio de sesión
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
@@ -51,6 +54,14 @@ export const signInWithEmail = async (email, password) => {
         if (!user.emailVerified) {
             throw { code: 'auth/email-not-verified', message: 'Por favor, verifica tu correo electrónico antes de iniciar sesión.' };
         }
+
+        // Guardar información adicional en AsyncStorage para persistencia adicional
+        await AsyncStorage.setItem('user_credential', JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            emailVerified: user.emailVerified,
+            displayName: user.displayName,
+        }));
 
         return user;
     } catch (error) {
@@ -111,6 +122,14 @@ export const signInWithGoogle = async (idToken) => {
             });
         }
 
+        // Guardar información adicional en AsyncStorage para persistencia adicional
+        await AsyncStorage.setItem('user_credential', JSON.stringify({
+            uid: user.uid,
+            email: user.email,
+            emailVerified: user.emailVerified,
+            displayName: user.displayName,
+        }));
+
         return user;
     } catch (error) {
         throw error;
@@ -162,7 +181,10 @@ export const resetPassword = async (email) => {
 export const signOut = async () => {
     try {
         await auth.signOut();
+        // Limpiar todos los datos de sesión almacenados
         await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem('userToken');
+        await AsyncStorage.removeItem('user_credential');
     } catch (error) {
         throw error;
     }

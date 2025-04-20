@@ -18,25 +18,62 @@ export function useAuth() {
   });
   const router = useRouter();
 
+  // Cargar la sesión guardada al inicializar
+  useEffect(() => {
+    const loadStoredSession = async () => {
+      try {
+        const storedUserData = await AsyncStorage.getItem("user_credential");
+        if (storedUserData && !auth.currentUser) {
+          // Si hay datos guardados pero no hay un usuario actualmente autenticado
+          // en Firebase, usamos esta información para mostrar un estado de carga
+          // mientras Firebase restaura automáticamente la sesión
+          setAuthState({
+            user: null,
+            authenticated: false,
+            loading: true,
+          });
+        }
+      } catch (error) {
+        console.error("Error al cargar la sesión guardada:", error);
+      }
+    };
+
+    loadStoredSession();
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         // Usuario autenticado
-        setAuthState({
-          user,
-          authenticated: true,
-          loading: false,
-        });
-
-        // Guardar información de usuario en AsyncStorage
-        await AsyncStorage.setItem(
-          "user",
-          JSON.stringify({
+        try {
+          // Obtener el token de autenticación
+          const token = await user.getIdToken();
+          
+          // Guardar el token y los datos de usuario en AsyncStorage
+          const userData = {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
-          })
-        );
+            emailVerified: user.emailVerified,
+            token: token,
+          };
+          
+          await AsyncStorage.setItem("user", JSON.stringify(userData));
+          await AsyncStorage.setItem("userToken", token);
+          
+          setAuthState({
+            user,
+            authenticated: true,
+            loading: false,
+          });
+        } catch (error) {
+          console.error("Error al guardar datos de sesión:", error);
+          setAuthState({
+            user,
+            authenticated: true,
+            loading: false,
+          });
+        }
       } else {
         // Usuario no autenticado
         setAuthState({
@@ -47,6 +84,8 @@ export function useAuth() {
 
         // Limpiar información de usuario en AsyncStorage
         await AsyncStorage.removeItem("user");
+        await AsyncStorage.removeItem("userToken");
+        await AsyncStorage.removeItem("user_credential");
       }
     });
 

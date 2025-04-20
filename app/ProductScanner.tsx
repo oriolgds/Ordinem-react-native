@@ -7,16 +7,28 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Camera, CameraType, BarCodeScanningResult } from 'expo-camera';
+import { Camera, BarCodeScanningResult } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getProductFromCache, addProduct } from '@/services/firebase';
+
+// Definir constantes para FlashMode ya que hay problemas con la importación
+const FLASH_MODE = {
+  off: 'off',
+  torch: 'torch'
+};
+
+// Definir constantes para CameraType
+const CAMERA_TYPE = {
+  back: 'back',
+  front: 'front'
+};
 
 export default function ProductScanner() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [flashMode, setFlashMode] = useState(Camera.Constants.FlashMode.off);
+  const [flashMode, setFlashMode] = useState(FLASH_MODE.off);
   const router = useRouter();
 
   useEffect(() => {
@@ -105,9 +117,9 @@ export default function ProductScanner() {
 
   const toggleFlash = () => {
     setFlashMode(
-      flashMode === Camera.Constants.FlashMode.off
-        ? Camera.Constants.FlashMode.torch
-        : Camera.Constants.FlashMode.off
+      flashMode === FLASH_MODE.off
+        ? FLASH_MODE.torch
+        : FLASH_MODE.off
     );
   };
 
@@ -160,7 +172,7 @@ export default function ProductScanner() {
     <View style={styles.container}>
       <Camera
         style={StyleSheet.absoluteFillObject}
-        type={CameraType.back}
+        type={CAMERA_TYPE.back}
         flashMode={flashMode}
         onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
         barCodeScannerSettings={{
@@ -205,7 +217,7 @@ export default function ProductScanner() {
       {/* Botón de linterna */}
       <TouchableOpacity style={styles.flashButtonContainer} onPress={toggleFlash}>
         <Ionicons 
-          name={flashMode === Camera.Constants.FlashMode.torch ? "flashlight" : "flashlight-outline"} 
+          name={flashMode === FLASH_MODE.torch ? "flashlight" : "flashlight-outline"} 
           size={30} 
           color="white" 
         />
