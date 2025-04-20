@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Image,
   TouchableOpacity,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,11 +18,46 @@ interface NutrientInfo {
   unit: string;
 }
 
+interface ProductData {
+  product: {
+    product_name: string;
+    brands: string;
+    image_url: string;
+    nutriscore_grade?: string;
+    ecoscore_grade?: string;
+    ingredients_text: string;
+    nutriments: {
+      energy_100g: number;
+      proteins_100g: number;
+      carbohydrates_100g: number;
+      fat_100g: number;
+      fiber_100g: number;
+      salt_100g: number;
+      sugars_100g: number;
+      saturated_fat_100g: number;
+      sodium_100g: number;
+      calcium_100g: number;
+      iron_100g: number;
+      trans_fat_100g: number;
+      cholesterol_100g: number;
+      vitamin_a_100g: number;
+      vitamin_c_100g: number;
+      vitamin_d_100g: number;
+    };
+  };
+  status: number;
+}
+
 export default function ProductDetails() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const productData = params.productData ? JSON.parse(params.productData as string) : null;
   const barcode = params.barcode as string;
+
+  const [nutriScoreLoading, setNutriScoreLoading] = useState(true);
+  const [ecoScoreLoading, setEcoScoreLoading] = useState(true);
+  const [nutriScoreError, setNutriScoreError] = useState(false);
+  const [ecoScoreError, setEcoScoreError] = useState(false);
 
   if (!productData) {
     return (
@@ -39,9 +75,44 @@ export default function ProductDetails() {
 
   const nutrients: NutrientInfo[] = [
     {
-      label: 'Energía',
+      label: 'Valor energético',
       value: productData.nutriments.energy_100g || 0,
       unit: 'kcal',
+    },
+    {
+      label: 'Grasas',
+      value: productData.nutriments.fat_100g || 0,
+      unit: 'g',
+    },
+    {
+      label: '- Saturadas',
+      value: productData.nutriments.saturated_fat_100g || 0,
+      unit: 'g',
+    },
+    {
+      label: '- Trans',
+      value: productData.nutriments.trans_fat_100g || 0,
+      unit: 'g',
+    },
+    {
+      label: 'Colesterol',
+      value: productData.nutriments.cholesterol_100g || 0,
+      unit: 'mg',
+    },
+    {
+      label: 'Hidratos de carbono',
+      value: productData.nutriments.carbohydrates_100g || 0,
+      unit: 'g',
+    },
+    {
+      label: '- Azúcares',
+      value: productData.nutriments.sugars_100g || 0,
+      unit: 'g',
+    },
+    {
+      label: 'Fibra alimentaria',
+      value: productData.nutriments.fiber_100g || 0,
+      unit: 'g',
     },
     {
       label: 'Proteínas',
@@ -49,23 +120,50 @@ export default function ProductDetails() {
       unit: 'g',
     },
     {
-      label: 'Carbohidratos',
-      value: productData.nutriments.carbohydrates_100g || 0,
+      label: 'Sal',
+      value: productData.nutriments.salt_100g || 0,
       unit: 'g',
     },
     {
-      label: 'Grasas',
-      value: productData.nutriments.fat_100g || 0,
+      label: 'Sodio',
+      value: productData.nutriments.sodium_100g || 0,
       unit: 'g',
+    },
+    {
+      label: 'Calcio',
+      value: productData.nutriments.calcium_100g || 0,
+      unit: 'mg',
+    },
+    {
+      label: 'Hierro',
+      value: productData.nutriments.iron_100g || 0,
+      unit: 'mg',
+    },
+    {
+      label: 'Vitamina A',
+      value: productData.nutriments.vitamin_a_100g || 0,
+      unit: 'µg',
+    },
+    {
+      label: 'Vitamina C',
+      value: productData.nutriments.vitamin_c_100g || 0,
+      unit: 'mg',
+    },
+    {
+      label: 'Vitamina D',
+      value: productData.nutriments.vitamin_d_100g || 0,
+      unit: 'µg',
     },
   ];
 
   const getNutriScoreImage = (grade: string) => {
-    return `https://static.openfoodfacts.org/images/attributes/nutriscore-${grade?.toLowerCase()}.svg`;
+    const nutriscore = grade?.toLowerCase() || 'unknown';
+    return `https://static.openfoodfacts.org/images/misc/nutriscore-${nutriscore}.png`;
   };
 
   const getEcoScoreImage = (grade: string) => {
-    return `https://static.openfoodfacts.org/images/attributes/ecoscore-${grade?.toLowerCase()}.svg`;
+    const ecoscore = grade?.toLowerCase() || 'unknown';
+    return `https://static.openfoodfacts.org/images/misc/ecoscore-${ecoscore}.png`;
   };
 
   return (
@@ -93,39 +191,54 @@ export default function ProductDetails() {
         {productData.brands && (
           <Text style={styles.brand}>{productData.brands}</Text>
         )}
-        <Text style={styles.barcode}>Código de barras: {barcode}</Text>
 
         {/* Nutri-Score y Eco-Score */}
         <View style={styles.scoresContainer}>
           {productData.nutriscore_grade && (
             <View style={styles.scoreItem}>
               <Text style={styles.scoreLabel}>Nutri-Score</Text>
+              {nutriScoreLoading && (
+                <ActivityIndicator size="small" color="#6D9EBE" style={styles.scoreLoader} />
+              )}
               <Image
                 source={{ uri: getNutriScoreImage(productData.nutriscore_grade) }}
-                style={styles.scoreImage}
+                style={[styles.scoreImage, nutriScoreError && styles.scoreImageError]}
                 resizeMode="contain"
+                onLoadStart={() => setNutriScoreLoading(true)}
+                onLoadEnd={() => setNutriScoreLoading(false)}
+                onError={() => {
+                  setNutriScoreLoading(false);
+                  setNutriScoreError(true);
+                }}
               />
+              {nutriScoreError && (
+                <Text style={styles.scoreError}>Error al cargar Nutri-Score</Text>
+              )}
             </View>
           )}
           {productData.ecoscore_grade && (
             <View style={styles.scoreItem}>
               <Text style={styles.scoreLabel}>Eco-Score</Text>
+              {ecoScoreLoading && (
+                <ActivityIndicator size="small" color="#6D9EBE" style={styles.scoreLoader} />
+              )}
               <Image
                 source={{ uri: getEcoScoreImage(productData.ecoscore_grade) }}
-                style={styles.scoreImage}
+                style={[styles.scoreImage, ecoScoreError && styles.scoreImageError]}
                 resizeMode="contain"
+                onLoadStart={() => setEcoScoreLoading(true)}
+                onLoadEnd={() => setEcoScoreLoading(false)}
+                onError={() => {
+                  setEcoScoreLoading(false);
+                  setEcoScoreError(true);
+                }}
               />
+              {ecoScoreError && (
+                <Text style={styles.scoreError}>Error al cargar Eco-Score</Text>
+              )}
             </View>
           )}
         </View>
-
-        {/* Categorías */}
-        {productData.categories && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Categorías</Text>
-            <Text style={styles.sectionText}>{productData.categories}</Text>
-          </View>
-        )}
 
         {/* Ingredientes */}
         {productData.ingredients_text && (
@@ -138,15 +251,52 @@ export default function ProductDetails() {
         {/* Información nutricional */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Información nutricional</Text>
-          <Text style={styles.sectionSubtitle}>Por 100g:</Text>
-          {nutrients.map((nutrient, index) => (
-            <View key={index} style={styles.nutrientRow}>
-              <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
-              <Text style={styles.nutrientValue}>
-                {nutrient.value} {nutrient.unit}
-              </Text>
-            </View>
-          ))}
+          <Text style={styles.sectionSubtitle}>Valores medios por 100g:</Text>
+          
+          {/* Macronutrientes */}
+          <View style={styles.nutrientGroup}>
+            <Text style={styles.nutrientGroupTitle}>Macronutrientes</Text>
+            {nutrients.slice(0, 9).map((nutrient, index) => (
+              <View key={index} style={[
+                styles.nutrientRow,
+                nutrient.label.startsWith('-') && styles.subNutrientRow
+              ]}>
+                <Text style={[
+                  styles.nutrientLabel,
+                  nutrient.label.startsWith('-') && styles.subNutrientLabel
+                ]}>{nutrient.label}</Text>
+                <Text style={styles.nutrientValue}>
+                  {nutrient.value.toFixed(1)} {nutrient.unit}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Minerales */}
+          <View style={styles.nutrientGroup}>
+            <Text style={styles.nutrientGroupTitle}>Minerales</Text>
+            {nutrients.slice(9, 13).map((nutrient, index) => (
+              <View key={index} style={styles.nutrientRow}>
+                <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
+                <Text style={styles.nutrientValue}>
+                  {nutrient.value.toFixed(1)} {nutrient.unit}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Vitaminas */}
+          <View style={styles.nutrientGroup}>
+            <Text style={styles.nutrientGroupTitle}>Vitaminas</Text>
+            {nutrients.slice(13).map((nutrient, index) => (
+              <View key={index} style={styles.nutrientRow}>
+                <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
+                <Text style={styles.nutrientValue}>
+                  {nutrient.value.toFixed(1)} {nutrient.unit}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         {/* Enlace a Open Food Facts */}
@@ -200,11 +350,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 8,
   },
-  barcode: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 16,
-  },
   scoresContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -218,8 +363,28 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   scoreImage: {
-    width: 100,
-    height: 60,
+    width: 120,
+    height: 70,
+    marginBottom: 10,
+  },
+  scoreLoader: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -10,
+    marginTop: -10,
+  },
+  scoreError: {
+    color: '#FF5252',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  scoreImageError: {
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
   },
   section: {
     marginVertical: 16,
@@ -239,6 +404,14 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 24,
   },
+  nutrientGroup: {
+    marginBottom: 16,
+  },
+  nutrientGroupTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
   nutrientRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -246,9 +419,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  subNutrientRow: {
+    paddingLeft: 16,
+  },
   nutrientLabel: {
     fontSize: 16,
     color: '#333',
+  },
+  subNutrientLabel: {
+    fontSize: 14,
+    color: '#666',
   },
   nutrientValue: {
     fontSize: 16,
