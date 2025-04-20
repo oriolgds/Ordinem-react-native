@@ -7,148 +7,108 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Camera, BarCodeScanningResult } from 'expo-camera';
+import { BarCodeScanner } from 'expo-barcode-scanner';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getProductFromCache, addProduct } from '@/services/firebase';
 
-// Definir constantes para FlashMode ya que hay problemas con la importación
-const FLASH_MODE = {
-  off: 'off',
-  torch: 'torch'
-};
-
-// Definir constantes para CameraType
-const CAMERA_TYPE = {
-  back: 'back',
-  front: 'front'
-};
+interface ProductData {
+  product: {
+    product_name: string;
+    brands: string;
+    image_url: string;
+    nutriscore_grade?: string;
+    ecoscore_grade?: string;
+    categories: string;
+    ingredients_text: string;
+    nutriments: {
+      energy_100g: number;
+      proteins_100g: number;
+      carbohydrates_100g: number;
+      fat_100g: number;
+    };
+  };
+  status: number;
+}
 
 export default function ProductScanner() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [flashMode, setFlashMode] = useState(FLASH_MODE.off);
   const router = useRouter();
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
+    const getBarCodeScannerPermissions = async () => {
+      const { status } = await BarCodeScanner.requestPermissionsAsync();
       setHasPermission(status === 'granted');
-    })();
+    };
+
+    getBarCodeScannerPermissions();
   }, []);
 
-  const handleBarCodeScanned = async (scanningResult: BarCodeScanningResult) => {
-    const { type, data } = scanningResult;
-    
+  const fetchProductInfo = async (barcode: string) => {
+    try {
+      const response = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
+      );
+      const data: ProductData = await response.json();
+      
+      if (data.status === 1) {
+        router.push({
+          pathname: '/ProductDetails',
+          params: {
+            productData: JSON.stringify(data.product),
+            barcode: barcode,
+          },
+        });
+      } else {
+        Alert.alert(
+          'Producto no encontrado',
+          'Este producto no está disponible en la base de datos.',
+          [{ text: 'OK', onPress: () => setScanned(false) }]
+        );
+      }
+    } catch (error) {
+      console.error('Error al obtener información del producto:', error);
+      Alert.alert(
+        'Error',
+        'No se pudo obtener la información del producto. Por favor, inténtalo de nuevo.',
+        [{ text: 'OK', onPress: () => setScanned(false) }]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
     if (scanned) return;
     setScanned(true);
     setLoading(true);
-    
-    try {
-      console.log('Código escaneado:', data);
-      
-      // Verificar si el producto ya existe en la caché
-      const cachedProduct = await getProductFromCache(data);
-      
-      if (cachedProduct) {
-        // Si existe, agregarlo directamente a los productos del usuario
-        const productId = Date.now().toString();
-        await addProduct({
-          id: productId,
-          name: cachedProduct.name,
-          category: cachedProduct.category,
-          expiryDate: calculateDefaultExpiryDate(cachedProduct.category),
-          location: 'Principal',
-          quantity: 1,
-          barcode: data,
-          notes: '',
-        });
-        
-        // Navegar a la pantalla de detalles del producto
-        Alert.alert(
-          'Producto añadido',
-          `${cachedProduct.name} ha sido añadido a tu inventario.`,
-          [
-            { 
-              text: 'Ver detalles', 
-              onPress: () => router.push({
-                pathname: '/ProductDetails',
-                params: { productId }
-              }) 
-            },
-            { 
-              text: 'Escanear otro', 
-              onPress: () => {
-                setScanned(false);
-                setLoading(false);
-              } 
-            }
-          ]
-        );
-      } else {
-        // Si no existe, navegar a la pantalla de añadir producto con el código de barras
-        router.push({
-          pathname: '/AddProduct',
-          params: { barcode: data }
-        });
-      }
-    } catch (error) {
-      console.error('Error al procesar código de barras:', error);
+
+    // Validar que sea un código de barras válido
+    if (data.length < 8 || data.length > 13 || !/^\d+$/.test(data)) {
+      setLoading(false);
       Alert.alert(
-        'Error',
-        'No se pudo procesar el código. Inténtalo de nuevo.',
-        [
-          { 
-            text: 'OK', 
-            onPress: () => {
-              setScanned(false);
-              setLoading(false);
-            } 
-          }
-        ]
+        'Código inválido',
+        'Por favor, escanea un código de barras válido.',
+        [{ text: 'OK', onPress: () => setScanned(false) }]
       );
+      return;
     }
+
+    await fetchProductInfo(data);
   };
 
   const handleClose = () => {
     router.back();
   };
 
-  const toggleFlash = () => {
-    setFlashMode(
-      flashMode === FLASH_MODE.off
-        ? FLASH_MODE.torch
-        : FLASH_MODE.off
-    );
-  };
-
-  // Calcular una fecha de caducidad predeterminada según la categoría
-  const calculateDefaultExpiryDate = (category: string): string => {
-    const date = new Date();
-    
-    switch (category.toLowerCase()) {
-      case 'alimentos':
-        date.setDate(date.getDate() + 7); // 1 semana
-        break;
-      case 'bebidas':
-        date.setMonth(date.getMonth() + 3); // 3 meses
-        break;
-      case 'limpieza':
-        date.setFullYear(date.getFullYear() + 1); // 1 año
-        break;
-      default:
-        date.setMonth(date.getMonth() + 1); // 1 mes
-    }
-    
-    return date.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-  };
-
   if (hasPermission === null) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#6D9EBE" />
-        <Text style={styles.permissionText}>Solicitando permisos de cámara...</Text>
+        <Text style={styles.permissionText}>
+          Solicitando permisos de cámara...
+        </Text>
       </View>
     );
   }
@@ -156,10 +116,11 @@ export default function ProductScanner() {
   if (hasPermission === false) {
     return (
       <View style={styles.container}>
-        <Ionicons name="camera-off-outline" size={64} color="#FF5252" />
+        <Ionicons name="camera-outline" size={64} color="#FF5252" />
         <Text style={styles.permissionText}>No hay acceso a la cámara</Text>
         <Text style={styles.permissionSubtext}>
-          Para escanear códigos QR, debes permitir el acceso a la cámara en la configuración de tu dispositivo.
+          Para escanear productos, debes permitir el acceso a la cámara en la
+          configuración de tu dispositivo.
         </Text>
         <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
           <Text style={styles.closeButtonText}>Volver</Text>
@@ -170,17 +131,17 @@ export default function ProductScanner() {
 
   return (
     <View style={styles.container}>
-      <Camera
+      <BarCodeScanner
         style={StyleSheet.absoluteFillObject}
-        type={CAMERA_TYPE.back}
-        flashMode={flashMode}
         onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
-        barCodeScannerSettings={{
-          barCodeTypes: ['qr', 'upc-e', 'upc-a', 'ean-8', 'ean-13', 'code-128', 'code-39', 'code-93', 'codabar', 'itf'],
-        }}
+        barCodeTypes={[
+          BarCodeScanner.Constants.BarCodeType.ean13,
+          BarCodeScanner.Constants.BarCodeType.ean8,
+          BarCodeScanner.Constants.BarCodeType.upc_a,
+          BarCodeScanner.Constants.BarCodeType.upc_e,
+        ]}
       />
-      
-      {/* Overlay y guía de escaneo */}
+
       <View style={styles.overlay}>
         <View style={styles.unfilled} />
         <View style={styles.row}>
@@ -189,7 +150,7 @@ export default function ProductScanner() {
             {loading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="white" />
-                <Text style={styles.loadingText}>Procesando código...</Text>
+                <Text style={styles.loadingText}>Buscando producto...</Text>
               </View>
             ) : (
               <>
@@ -208,28 +169,17 @@ export default function ProductScanner() {
           </Text>
         </View>
       </View>
-      
-      {/* Botón de cerrar */}
+
       <TouchableOpacity style={styles.closeButtonContainer} onPress={handleClose}>
-        <Ionicons name="close-circle" size={50} color="white" />
+        <Ionicons name="close-outline" size={50} color="white" />
       </TouchableOpacity>
-      
-      {/* Botón de linterna */}
-      <TouchableOpacity style={styles.flashButtonContainer} onPress={toggleFlash}>
-        <Ionicons 
-          name={flashMode === FLASH_MODE.torch ? "flashlight" : "flashlight-outline"} 
-          size={30} 
-          color="white" 
-        />
-      </TouchableOpacity>
-      
-      {/* Botón para volver a escanear */}
+
       {scanned && !loading && (
-        <TouchableOpacity 
-          style={styles.rescanButton} 
+        <TouchableOpacity
+          style={styles.rescanButton}
           onPress={() => setScanned(false)}
         >
-          <Text style={styles.rescanButtonText}>Escanear de nuevo</Text>
+          <Text style={styles.rescanButtonText}>Escanear otro</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -304,14 +254,6 @@ const styles = StyleSheet.create({
     top: 50,
     right: 20,
   },
-  flashButtonContainer: {
-    position: 'absolute',
-    bottom: 50,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 30,
-    padding: 10,
-  },
   rescanButton: {
     position: 'absolute',
     bottom: 50,
@@ -368,4 +310,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
   },
-}); 
+});
