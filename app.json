@@ -23,7 +23,9 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "googleServicesFile": "./google-services.json"
     },
@@ -61,11 +63,22 @@
         }
       ],
       [
-        "@react-native-google-signin/google-signin"
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "e655e3c5-419c-4669-98c9-d7d46d02a53f"
+      }
     }
   }
 }

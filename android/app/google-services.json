@@ -13,7 +13,12 @@
           "package_name": "com.ordinem.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBMjLGzxH6OVDszHfEHGVS5N_SlsU9aDeA"
@@ -21,7 +26,10 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [],
+          "sha1_cert_fingerprints": [
+            "F8:78:DB:05:E5:A5:E0:24:1B:F8:4A:C7:9E:F2:CE:D7:B6:53:2E:31"
+          ]
         }
       }
     }

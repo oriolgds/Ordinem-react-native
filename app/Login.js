@@ -51,8 +51,7 @@ const Login = () => {
         if (GoogleSignin && !isExpoGo) {
             GoogleSignin.configure({
                 webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
-                offlineAccess: true,
-                scopes: ['profile', 'email']
+                // No se necesitan más parámetros para Android
             });
         }
     }, []);
@@ -112,7 +111,7 @@ const Login = () => {
     const handleGoogleSignIn = async () => {
         try {
             setLoading(true);
-            
+
             // Si estamos en Expo Go, mostramos un mensaje
             if (isExpoGo) {
                 Alert.alert(
@@ -122,12 +121,12 @@ const Login = () => {
                 );
                 return;
             }
-            
+
             // Si Google SignIn está disponible, lo usamos
             if (GoogleSignin) {
                 await GoogleSignin.hasPlayServices();
                 const userInfo = await GoogleSignin.signIn();
-                
+
                 // Pasar el idToken a Firebase para autenticar
                 if (userInfo.idToken) {
                     await signInWithGoogle(userInfo.idToken);
@@ -140,7 +139,7 @@ const Login = () => {
             }
         } catch (error) {
             console.error('Error al iniciar sesión con Google:', error);
-            
+
             let errorMessage = 'No se pudo iniciar sesión con Google';
             if (GoogleSignin && statusCodes) {
                 if (error.code === statusCodes.SIGN_IN_CANCELLED) {
@@ -151,7 +150,7 @@ const Login = () => {
                     errorMessage = 'Google Play Services no está disponible';
                 }
             }
-            
+
             Alert.alert('Error de autenticación', errorMessage);
         } finally {
             setLoading(false);
