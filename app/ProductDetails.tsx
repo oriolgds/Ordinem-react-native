@@ -58,6 +58,7 @@ export default function ProductDetails() {
   const [ecoScoreLoading, setEcoScoreLoading] = useState(true);
   const [nutriScoreError, setNutriScoreError] = useState(false);
   const [ecoScoreError, setEcoScoreError] = useState(false);
+  const [useEcoScoreFallback, setUseEcoScoreFallback] = useState(false);
 
   if (!productData) {
     return (
@@ -163,7 +164,9 @@ export default function ProductDetails() {
 
   const getEcoScoreImage = (grade: string) => {
     const ecoscore = grade?.toLowerCase() || 'unknown';
-    return `https://static.openfoodfacts.org/images/misc/ecoscore-${ecoscore}.png`;
+    return useEcoScoreFallback 
+      ? `https://static.openfoodfacts.org/images/misc/ecoscore-${ecoscore}.png`
+      : `https://static.openfoodfacts.org/images/attributes/ecoscore-${ecoscore}.png`;
   };
 
   return (
@@ -196,7 +199,6 @@ export default function ProductDetails() {
         <View style={styles.scoresContainer}>
           {productData.nutriscore_grade && (
             <View style={styles.scoreItem}>
-              <Text style={styles.scoreLabel}>Nutri-Score</Text>
               {nutriScoreLoading && (
                 <ActivityIndicator size="small" color="#6D9EBE" style={styles.scoreLoader} />
               )}
@@ -218,7 +220,6 @@ export default function ProductDetails() {
           )}
           {productData.ecoscore_grade && (
             <View style={styles.scoreItem}>
-              <Text style={styles.scoreLabel}>Eco-Score</Text>
               {ecoScoreLoading && (
                 <ActivityIndicator size="small" color="#6D9EBE" style={styles.scoreLoader} />
               )}
@@ -229,8 +230,14 @@ export default function ProductDetails() {
                 onLoadStart={() => setEcoScoreLoading(true)}
                 onLoadEnd={() => setEcoScoreLoading(false)}
                 onError={() => {
-                  setEcoScoreLoading(false);
-                  setEcoScoreError(true);
+                  if (!useEcoScoreFallback) {
+                    setUseEcoScoreFallback(true);
+                    setEcoScoreLoading(true);
+                    setEcoScoreError(false);
+                  } else {
+                    setEcoScoreLoading(false);
+                    setEcoScoreError(true);
+                  }
                 }}
               />
               {ecoScoreError && (

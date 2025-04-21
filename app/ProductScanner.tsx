@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  AppState,
 } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ProductDetailsModal } from '@/components/ProductDetailsModal';
 
 interface ProductData {
   product: {
@@ -18,13 +20,24 @@ interface ProductData {
     image_url: string;
     nutriscore_grade?: string;
     ecoscore_grade?: string;
-    categories: string;
     ingredients_text: string;
     nutriments: {
       energy_100g: number;
       proteins_100g: number;
       carbohydrates_100g: number;
       fat_100g: number;
+      fiber_100g: number;
+      salt_100g: number;
+      sugars_100g: number;
+      saturated_fat_100g: number;
+      sodium_100g: number;
+      calcium_100g: number;
+      iron_100g: number;
+      trans_fat_100g: number;
+      cholesterol_100g: number;
+      vitamin_a_100g: number;
+      vitamin_c_100g: number;
+      vitamin_d_100g: number;
     };
   };
   status: number;
@@ -34,7 +47,11 @@ export default function ProductScanner() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [scannedProduct, setScannedProduct] = useState<ProductData | null>(null);
+  const [scannedBarcode, setScannedBarcode] = useState<string>('');
   const router = useRouter();
+  const navigation = useNavigation();
 
   useEffect(() => {
     const getBarCodeScannerPermissions = async () => {
@@ -45,27 +62,44 @@ export default function ProductScanner() {
     getBarCodeScannerPermissions();
   }, []);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        setScanned(false);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      setScanned(false);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   const fetchProductInfo = async (barcode: string) => {
     try {
       const response = await fetch(
         `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
       );
-      const data: ProductData = await response.json();
+      const data = await response.json();
       
       if (data.status === 1) {
-        router.push({
-          pathname: '/ProductDetails',
-          params: {
-            productData: JSON.stringify(data.product),
-            barcode: barcode,
-          },
-        });
+        return data.product;
       } else {
         Alert.alert(
           'Producto no encontrado',
           'Este producto no está disponible en la base de datos.',
           [{ text: 'OK', onPress: () => setScanned(false) }]
         );
+        return null;
       }
     } catch (error) {
       console.error('Error al obtener información del producto:', error);
@@ -74,6 +108,7 @@ export default function ProductScanner() {
         'No se pudo obtener la información del producto. Por favor, inténtalo de nuevo.',
         [{ text: 'OK', onPress: () => setScanned(false) }]
       );
+      return null;
     } finally {
       setLoading(false);
     }
@@ -83,8 +118,8 @@ export default function ProductScanner() {
     if (scanned) return;
     setScanned(true);
     setLoading(true);
+    setScannedBarcode(data);
 
-    // Validar que sea un código de barras válido
     if (data.length < 8 || data.length > 13 || !/^\d+$/.test(data)) {
       setLoading(false);
       Alert.alert(
@@ -95,7 +130,14 @@ export default function ProductScanner() {
       return;
     }
 
-    await fetchProductInfo(data);
+    const response = await fetchProductInfo(data);
+    if (response) {
+      setScannedProduct({
+        product: response,
+        status: 1
+      });
+      setModalVisible(true);
+    }
   };
 
   const handleClose = () => {
@@ -182,6 +224,16 @@ export default function ProductScanner() {
           <Text style={styles.rescanButtonText}>Escanear otro</Text>
         </TouchableOpacity>
       )}
+
+      <ProductDetailsModal 
+        visible={modalVisible}
+        onClose={() => {
+          setModalVisible(false);
+          setScanned(false);
+        }}
+        productData={scannedProduct}
+        barcode={scannedBarcode}
+      />
     </View>
   );
 }

@@ -12,9 +12,29 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getProducts } from '@/services/firebase';
+import { ProductDetailsModal } from '@/components/ProductDetailsModal';
+
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  location: string;
+  expiryDate: string;
+  barcode: string;
+}
+
+interface ProductCardProps {
+  product: Product;
+  onPress: (product: Product) => void;
+}
+
+interface SearchBarProps {
+  value: string;
+  onChangeText: (text: string) => void;
+}
 
 // Componente de tarjeta de producto
-const ProductCard = ({ product, onPress }) => {
+const ProductCard = ({ product, onPress }: ProductCardProps) => {
   const isExpiring = new Date(product.expiryDate) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const isExpired = new Date(product.expiryDate) < new Date();
   
@@ -45,7 +65,7 @@ const ProductCard = ({ product, onPress }) => {
 };
 
 // Componente de barra de búsqueda
-const SearchBar = ({ value, onChangeText }) => {
+const SearchBar = ({ value, onChangeText }: SearchBarProps) => {
   return (
     <View style={styles.searchContainer}>
       <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
@@ -60,12 +80,14 @@ const SearchBar = ({ value, onChangeText }) => {
 };
 
 export default function ProductsScreen() {
-  const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const router = useRouter();
 
   // Cargar productos desde Firebase
@@ -82,7 +104,7 @@ export default function ProductsScreen() {
   };
 
   // Filtrar productos
-  const filterProducts = (productsData, query, category) => {
+  const filterProducts = (productsData: Product[], query: string, category: string) => {
     let filtered = productsData;
     
     if (query) {
@@ -118,15 +140,13 @@ export default function ProductsScreen() {
   };
 
   // Navegar a detalle del producto
-  const handleProductPress = (product) => {
-    router.push({
-      pathname: '/ProductDetails',
-      params: { productId: product.id }
-    });
+  const handleProductPress = (product: Product) => {
+    setSelectedProduct(product);
+    setModalVisible(true);
   };
 
   // Cambiar filtro de categoría
-  const handleCategoryFilter = (category) => {
+  const handleCategoryFilter = (category: string) => {
     setCategoryFilter(prevCategory => prevCategory === category ? '' : category);
   };
 
@@ -192,6 +212,41 @@ export default function ProductsScreen() {
       <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/ProductScanner')}>
         <Ionicons name="qr-code-outline" size={24} color="white" />
       </TouchableOpacity>
+
+      <ProductDetailsModal 
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        productData={selectedProduct ? {
+          product: {
+            product_name: selectedProduct.name,
+            brands: '',
+            image_url: '',
+            nutriscore_grade: undefined,
+            ecoscore_grade: undefined,
+            ingredients_text: '',
+            nutriments: {
+              energy_100g: 0,
+              proteins_100g: 0,
+              carbohydrates_100g: 0,
+              fat_100g: 0,
+              fiber_100g: 0,
+              salt_100g: 0,
+              sugars_100g: 0,
+              saturated_fat_100g: 0,
+              sodium_100g: 0,
+              calcium_100g: 0,
+              iron_100g: 0,
+              trans_fat_100g: 0,
+              cholesterol_100g: 0,
+              vitamin_a_100g: 0,
+              vitamin_c_100g: 0,
+              vitamin_d_100g: 0
+            }
+          },
+          status: 1
+        } : null}
+        barcode={selectedProduct?.barcode || ''}
+      />
     </View>
   );
 }
@@ -328,4 +383,4 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
-}); 
+});
