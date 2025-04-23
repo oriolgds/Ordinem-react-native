@@ -1,17 +1,16 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Image,
   TouchableOpacity,
   Linking,
   ActivityIndicator,
-  Modal,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 
 interface NutrientInfo {
   label: string;
@@ -63,9 +62,35 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
   const [ecoScoreError, setEcoScoreError] = useState(false);
   const [useEcoScoreFallback, setUseEcoScoreFallback] = useState(false);
 
-  if (!productData) {
-    return null;
-  }
+  const bottomSheetRef = useRef<BottomSheet>(null);
+
+  const snapPoints = useMemo(() => ['50%', '90%'], []);
+
+  const handleSheetChanges = useCallback((index: number) => {
+    if (index === -1) onClose();
+  }, [onClose]);
+
+  const renderBackdrop = useCallback(
+    (props) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
+  React.useEffect(() => {
+    if (visible) {
+      bottomSheetRef.current?.expand();
+    } else {
+      bottomSheetRef.current?.close();
+    }
+  }, [visible]);
+
+  if (!productData) return null;
 
   const getNutriScoreImage = (grade: string) => {
     const nutriscore = grade?.toLowerCase() || 'unknown';
@@ -163,192 +188,189 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
   ];
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <BottomSheet
+      ref={bottomSheetRef}
+      index={-1}
+      snapPoints={snapPoints}
+      onChange={handleSheetChanges}
+      enablePanDownToClose
+      backdropComponent={renderBackdrop}
+      handleIndicatorStyle={styles.handleIndicator}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={onClose}
-            >
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Detalles del producto</Text>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={onClose}
+        >
+          <Ionicons name="close" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Detalles del producto</Text>
+      </View>
+
+      <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
+        {productData.product.image_url && (
+          <Image
+            source={{ uri: productData.product.image_url }}
+            style={styles.productImage}
+            resizeMode="contain"
+          />
+        )}
+
+        <View style={styles.infoContainer}>
+          <Text style={styles.productName}>{productData.product.product_name}</Text>
+          {productData.product.brands && (
+            <Text style={styles.brand}>{productData.product.brands}</Text>
+          )}
+
+          <View style={styles.scoresContainer}>
+            {productData.product.nutriscore_grade && (
+              <View style={styles.scoreItem}>
+                {nutriScoreLoading && (
+                  <ActivityIndicator size="small" color="#6D9EBE" style={styles.scoreLoader} />
+                )}
+                <Image
+                  source={{ uri: getNutriScoreImage(productData.product.nutriscore_grade) }}
+                  style={[styles.scoreImage, nutriScoreError && styles.scoreImageError]}
+                  resizeMode="contain"
+                  onLoadStart={() => setNutriScoreLoading(true)}
+                  onLoadEnd={() => setNutriScoreLoading(false)}
+                  onError={() => {
+                    setNutriScoreLoading(false);
+                    setNutriScoreError(true);
+                  }}
+                />
+                {nutriScoreError && (
+                  <Text style={styles.scoreError}>Error al cargar Nutri-Score</Text>
+                )}
+              </View>
+            )}
+            
+            {productData.product.ecoscore_grade && (
+              <View style={styles.scoreItem}>
+                {ecoScoreLoading && (
+                  <ActivityIndicator size="small" color="#6D9EBE" style={styles.scoreLoader} />
+                )}
+                <Image
+                  source={{ uri: getEcoScoreImage(productData.product.ecoscore_grade) }}
+                  style={[styles.scoreImage, ecoScoreError && styles.scoreImageError]}
+                  resizeMode="contain"
+                  onLoadStart={() => setEcoScoreLoading(true)}
+                  onLoadEnd={() => setEcoScoreLoading(false)}
+                  onError={() => {
+                    if (!useEcoScoreFallback) {
+                      setUseEcoScoreFallback(true);
+                      setEcoScoreLoading(true);
+                      setEcoScoreError(false);
+                    } else {
+                      setEcoScoreLoading(false);
+                      setEcoScoreError(true);
+                    }
+                  }}
+                />
+                {ecoScoreError && (
+                  <Text style={styles.scoreError}>Error al cargar Eco-Score</Text>
+                )}
+              </View>
+            )}
           </View>
 
-          <ScrollView style={styles.container}>
-            {productData.product.image_url && (
-              <Image
-                source={{ uri: productData.product.image_url }}
-                style={styles.productImage}
-                resizeMode="contain"
-              />
-            )}
-
-            <View style={styles.infoContainer}>
-              <Text style={styles.productName}>{productData.product.product_name}</Text>
-              {productData.product.brands && (
-                <Text style={styles.brand}>{productData.product.brands}</Text>
-              )}
-
-              <View style={styles.scoresContainer}>
-                {productData.product.nutriscore_grade && (
-                  <View style={styles.scoreItem}>
-                    {nutriScoreLoading && (
-                      <ActivityIndicator size="small" color="#6D9EBE" style={styles.scoreLoader} />
-                    )}
-                    <Image
-                      source={{ uri: getNutriScoreImage(productData.product.nutriscore_grade) }}
-                      style={[styles.scoreImage, nutriScoreError && styles.scoreImageError]}
-                      resizeMode="contain"
-                      onLoadStart={() => setNutriScoreLoading(true)}
-                      onLoadEnd={() => setNutriScoreLoading(false)}
-                      onError={() => {
-                        setNutriScoreLoading(false);
-                        setNutriScoreError(true);
-                      }}
-                    />
-                    {nutriScoreError && (
-                      <Text style={styles.scoreError}>Error al cargar Nutri-Score</Text>
-                    )}
-                  </View>
-                )}
-                
-                {productData.product.ecoscore_grade && (
-                  <View style={styles.scoreItem}>
-                    {ecoScoreLoading && (
-                      <ActivityIndicator size="small" color="#6D9EBE" style={styles.scoreLoader} />
-                    )}
-                    <Image
-                      source={{ uri: getEcoScoreImage(productData.product.ecoscore_grade) }}
-                      style={[styles.scoreImage, ecoScoreError && styles.scoreImageError]}
-                      resizeMode="contain"
-                      onLoadStart={() => setEcoScoreLoading(true)}
-                      onLoadEnd={() => setEcoScoreLoading(false)}
-                      onError={() => {
-                        if (!useEcoScoreFallback) {
-                          setUseEcoScoreFallback(true);
-                          setEcoScoreLoading(true);
-                          setEcoScoreError(false);
-                        } else {
-                          setEcoScoreLoading(false);
-                          setEcoScoreError(true);
-                        }
-                      }}
-                    />
-                    {ecoScoreError && (
-                      <Text style={styles.scoreError}>Error al cargar Eco-Score</Text>
-                    )}
-                  </View>
-                )}
-              </View>
-
-              {productData.product.ingredients_text && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Ingredientes</Text>
-                  <Text style={styles.sectionText}>{productData.product.ingredients_text}</Text>
-                </View>
-              )}
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Información nutricional</Text>
-                <Text style={styles.sectionSubtitle}>Valores medios por 100g:</Text>
-                
-                <View style={styles.nutrientGroup}>
-                  <Text style={styles.nutrientGroupTitle}>Macronutrientes</Text>
-                  {nutrients.slice(0, 9).map((nutrient, index) => (
-                    <View key={index} style={[
-                      styles.nutrientRow,
-                      nutrient.label.startsWith('-') && styles.subNutrientRow
-                    ]}>
-                      <Text style={[
-                        styles.nutrientLabel,
-                        nutrient.label.startsWith('-') && styles.subNutrientLabel
-                      ]}>{nutrient.label}</Text>
-                      <Text style={styles.nutrientValue}>
-                        {nutrient.value.toFixed(1)} {nutrient.unit}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                <View style={styles.nutrientGroup}>
-                  <Text style={styles.nutrientGroupTitle}>Minerales</Text>
-                  {nutrients.slice(9, 13).map((nutrient, index) => (
-                    <View key={index} style={styles.nutrientRow}>
-                      <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
-                      <Text style={styles.nutrientValue}>
-                        {nutrient.value.toFixed(1)} {nutrient.unit}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                <View style={styles.nutrientGroup}>
-                  <Text style={styles.nutrientGroupTitle}>Vitaminas</Text>
-                  {nutrients.slice(13).map((nutrient, index) => (
-                    <View key={index} style={styles.nutrientRow}>
-                      <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
-                      <Text style={styles.nutrientValue}>
-                        {nutrient.value.toFixed(1)} {nutrient.unit}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.linkButton}
-                onPress={() => Linking.openURL(`https://world.openfoodfacts.org/product/${barcode}`)}
-              >
-                <Text style={styles.linkButtonText}>Ver en Open Food Facts</Text>
-                <Ionicons name="open-outline" size={20} color="#6D9EBE" />
-              </TouchableOpacity>
+          {productData.product.ingredients_text && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Ingredientes</Text>
+              <Text style={styles.sectionText}>{productData.product.ingredients_text}</Text>
             </View>
-          </ScrollView>
+          )}
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Información nutricional</Text>
+            <Text style={styles.sectionSubtitle}>Valores medios por 100g:</Text>
+            
+            <View style={styles.nutrientGroup}>
+              <Text style={styles.nutrientGroupTitle}>Macronutrientes</Text>
+              {nutrients.slice(0, 9).map((nutrient, index) => (
+                <View key={index} style={[
+                  styles.nutrientRow,
+                  nutrient.label.startsWith('-') && styles.subNutrientRow
+                ]}>
+                  <Text style={[
+                    styles.nutrientLabel,
+                    nutrient.label.startsWith('-') && styles.subNutrientLabel
+                  ]}>{nutrient.label}</Text>
+                  <Text style={styles.nutrientValue}>
+                    {nutrient.value.toFixed(1)} {nutrient.unit}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.nutrientGroup}>
+              <Text style={styles.nutrientGroupTitle}>Minerales</Text>
+              {nutrients.slice(9, 13).map((nutrient, index) => (
+                <View key={index} style={styles.nutrientRow}>
+                  <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
+                  <Text style={styles.nutrientValue}>
+                    {nutrient.value.toFixed(1)} {nutrient.unit}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.nutrientGroup}>
+              <Text style={styles.nutrientGroupTitle}>Vitaminas</Text>
+              {nutrients.slice(13).map((nutrient, index) => (
+                <View key={index} style={styles.nutrientRow}>
+                  <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
+                  <Text style={styles.nutrientValue}>
+                    {nutrient.value.toFixed(1)} {nutrient.unit}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => Linking.openURL(`https://world.openfoodfacts.org/product/${barcode}`)}
+          >
+            <Text style={styles.linkButtonText}>Ver en Open Food Facts</Text>
+            <Ionicons name="open-outline" size={20} color="#6D9EBE" />
+          </TouchableOpacity>
         </View>
-      </View>
-    </Modal>
+      </BottomSheetScrollView>
+    </BottomSheet>
   );
 }
 
 const windowHeight = Dimensions.get('window').height;
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: windowHeight * 0.9,
-  },
-  modalHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  handleIndicator: {
+    backgroundColor: '#E0E0E0',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
   },
   closeButton: {
+    position: 'absolute',
+    left: 16,
     padding: 8,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginLeft: 16,
+    textAlign: 'center',
+  },
+  contentContainer: {
+    backgroundColor: '#fff',
   },
   productImage: {
     width: '100%',
