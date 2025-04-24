@@ -53,13 +53,22 @@ export default function RootLayout() {
   useEffect(() => {
     const checkStoredSession = async () => {
       try {
-        // Intentar recuperar la información de usuario guardada
         const storedUser = await AsyncStorage.getItem('user_credential');
         
-        if (storedUser && !auth.currentUser) {
-          // Si hay una sesión guardada pero no hay usuario autenticado actualmente,
-          // los datos guardados ayudarán a restablecer la sesión a través de Firebase Auth
-          console.log('Restaurando sesión de usuario desde AsyncStorage');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          console.log('Intentando restaurar sesión para:', userData.email);
+          
+          // Si no hay usuario autenticado pero tenemos datos guardados
+          if (!auth.currentUser && userData.uid) {
+            // Esperar un momento para que Firebase Auth se inicialice
+            setTimeout(() => {
+              if (!auth.currentUser) {
+                console.log('Forzando reautenticación del usuario');
+                // Aquí podrías implementar una reautenticación silenciosa si es necesario
+              }
+            }, 2000);
+          }
         }
         
         setIsSessionLoaded(true);

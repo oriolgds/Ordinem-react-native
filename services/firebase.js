@@ -35,6 +35,15 @@ const auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage)
 });
 
+// Asegurar que la persistencia se aplica correctamente
+setPersistence(auth, browserLocalPersistence)
+    .then(() => {
+        console.log('Persistencia configurada correctamente');
+    })
+    .catch((error) => {
+        console.error('Error configurando persistencia:', error);
+    });
+
 // Inicializar Database
 const database = getDatabase(app);
 
@@ -46,23 +55,19 @@ export { app, auth, database };
 // Autenticación de usuario
 export const signInWithEmail = async (email, password) => {
     try {
-        // Establecer persistencia local para este inicio de sesión
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // Verificar si el email está verificado
-        if (!user.emailVerified) {
-            throw { code: 'auth/email-not-verified', message: 'Por favor, verifica tu correo electrónico antes de iniciar sesión.' };
-        }
-
-        // Guardar información adicional en AsyncStorage para persistencia adicional
-        await AsyncStorage.setItem('user_credential', JSON.stringify({
+        // Guardar los datos de usuario de forma más robusta
+        const userData = {
             uid: user.uid,
             email: user.email,
             emailVerified: user.emailVerified,
             displayName: user.displayName,
-        }));
+            lastLoginAt: new Date().toISOString()
+        };
 
+        await AsyncStorage.setItem('user_credential', JSON.stringify(userData));
         return user;
     } catch (error) {
         throw error;
@@ -473,4 +478,54 @@ export const getProductStats = async () => {
         console.error('Error al obtener estadísticas:', error);
         throw error;
     }
-}; 
+};
+
+export const linkDevice = async (deviceId: string) => {
+    try {
+        const userId = auth.currentUser.uid;
+        const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
+        const snapshot = await get(deviceRef);
+
+        if (!snapshot.exists()) {
+            throw new Error('Dispositivo no encontrado');
+        }
+
+        // Vincular dispositivo al usuario
+        await set(ref(database, `users/${userId}/devices/${deviceId}`), true);
+        return true;
+    } catch (error) {
+        console.error('Error al vincular dispositivo:', error);
+        throw error;
+    }
+};
+
+export const getLinkedDevices = async () => {
+    try {
+        const userId = auth.currentUser.uid;
+        const devicesRef = ref(database, `users/${userId}/devices`);
+        const snapshot = await get(devicesRef);
+
+        if (!snapshot.exists()) {
+            return [];
+        }
+
+        const linkedDevices = [];
+        const deviceIds = Object.keys(snapshot.val());
+
+        for (const deviceId of deviceIds) {
+            const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
+            const deviceSnapshot = await get(deviceRef);
+            if (deviceSnapshot.exists()) {
+                linkedDevices.push({
+                    id: deviceId,
+                    ...deviceSnapshot.val()
+                });
+            }
+        }
+
+        return linkedDevices;
+    } catch (error) {
+        console.error('Error al obtener dispositivos:', error);
+        throw error;
+    }
+};
