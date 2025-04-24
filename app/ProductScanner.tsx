@@ -12,6 +12,7 @@ import { BarCodeScanner } from 'expo-barcode-scanner';
 import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ProductDetailsModal } from '@/components/ProductDetailsModal';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 interface ProductData {
   product: {
@@ -84,6 +85,24 @@ export default function ProductScanner() {
     return unsubscribe;
   }, [navigation]);
 
+  const updateScannedProduct = async (product: any) => {
+    // Primero cerramos el modal actual si está abierto
+    if (modalVisible) {
+      setModalVisible(false);
+    }
+    
+    // Actualizamos el producto y abrimos el modal con la nueva información
+    setScannedProduct({
+      product: product,
+      status: 1
+    });
+    
+    // Pequeño timeout para asegurar que el modal anterior se haya cerrado
+    setTimeout(() => {
+      setModalVisible(true);
+    }, 100);
+  };
+
   const fetchProductInfo = async (barcode: string) => {
     try {
       const response = await fetch(
@@ -132,11 +151,7 @@ export default function ProductScanner() {
 
     const response = await fetchProductInfo(data);
     if (response) {
-      setScannedProduct({
-        product: response,
-        status: 1
-      });
-      setModalVisible(true);
+      await updateScannedProduct(response);
     }
   };
 
@@ -172,69 +187,71 @@ export default function ProductScanner() {
   }
 
   return (
-    <View style={styles.container}>
-      <BarCodeScanner
-        style={StyleSheet.absoluteFillObject}
-        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
-        barCodeTypes={[
-          BarCodeScanner.Constants.BarCodeType.ean13,
-          BarCodeScanner.Constants.BarCodeType.ean8,
-          BarCodeScanner.Constants.BarCodeType.upc_a,
-          BarCodeScanner.Constants.BarCodeType.upc_e,
-        ]}
-      />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <BarCodeScanner
+          style={StyleSheet.absoluteFillObject}
+          onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barCodeTypes={[
+            BarCodeScanner.Constants.BarCodeType.ean13,
+            BarCodeScanner.Constants.BarCodeType.ean8,
+            BarCodeScanner.Constants.BarCodeType.upc_a,
+            BarCodeScanner.Constants.BarCodeType.upc_e,
+          ]}
+        />
 
-      <View style={styles.overlay}>
-        <View style={styles.unfilled} />
-        <View style={styles.row}>
+        <View style={styles.overlay}>
           <View style={styles.unfilled} />
-          <View style={styles.scanner}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="white" />
-                <Text style={styles.loadingText}>Buscando producto...</Text>
-              </View>
-            ) : (
-              <>
-                <View style={[styles.cornerTL, styles.corner]} />
-                <View style={[styles.cornerTR, styles.corner]} />
-                <View style={[styles.cornerBL, styles.corner]} />
-                <View style={[styles.cornerBR, styles.corner]} />
-              </>
-            )}
+          <View style={styles.row}>
+            <View style={styles.unfilled} />
+            <View style={styles.scanner}>
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="white" />
+                  <Text style={styles.loadingText}>Buscando producto...</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={[styles.cornerTL, styles.corner]} />
+                  <View style={[styles.cornerTR, styles.corner]} />
+                  <View style={[styles.cornerBL, styles.corner]} />
+                  <View style={[styles.cornerBR, styles.corner]} />
+                </>
+              )}
+            </View>
+            <View style={styles.unfilled} />
           </View>
-          <View style={styles.unfilled} />
+          <View style={styles.unfilled}>
+            <Text style={styles.instructions}>
+              Alinea el código de barras dentro del recuadro para escanearlo
+            </Text>
+          </View>
         </View>
-        <View style={styles.unfilled}>
-          <Text style={styles.instructions}>
-            Alinea el código de barras dentro del recuadro para escanearlo
-          </Text>
-        </View>
-      </View>
 
-      <TouchableOpacity style={styles.closeButtonContainer} onPress={handleClose}>
-        <Ionicons name="close-outline" size={50} color="white" />
-      </TouchableOpacity>
-
-      {scanned && !loading && (
-        <TouchableOpacity
-          style={styles.rescanButton}
-          onPress={() => setScanned(false)}
-        >
-          <Text style={styles.rescanButtonText}>Escanear otro</Text>
+        <TouchableOpacity style={styles.closeButtonContainer} onPress={handleClose}>
+          <Ionicons name="close-outline" size={50} color="white" />
         </TouchableOpacity>
-      )}
 
-      <ProductDetailsModal 
-        visible={modalVisible}
-        onClose={() => {
-          setModalVisible(false);
-          setScanned(false);
-        }}
-        productData={scannedProduct}
-        barcode={scannedBarcode}
-      />
-    </View>
+        {scanned && !loading && (
+          <TouchableOpacity
+            style={styles.rescanButton}
+            onPress={() => setScanned(false)}
+          >
+            <Text style={styles.rescanButtonText}>Escanear otro</Text>
+          </TouchableOpacity>
+        )}
+
+        <ProductDetailsModal 
+          visible={modalVisible}
+          onClose={() => {
+            setModalVisible(false);
+            setScanned(false);
+          }}
+          productData={scannedProduct}
+          barcode={scannedBarcode}
+        />
+      </View>
+    </GestureHandlerRootView>
   );
 }
 

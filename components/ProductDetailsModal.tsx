@@ -83,14 +83,12 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
   );
 
   React.useEffect(() => {
-    if (visible) {
-      bottomSheetRef.current?.expand();
-    } else {
-      bottomSheetRef.current?.close();
+    if (visible && bottomSheetRef.current) {
+      bottomSheetRef.current.snapToIndex(0);
     }
   }, [visible]);
 
-  if (!productData) return null;
+  if (!productData || !visible) return null;
 
   const getNutriScoreImage = (grade: string) => {
     const nutriscore = grade?.toLowerCase() || 'unknown';
@@ -190,12 +188,13 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
   return (
     <BottomSheet
       ref={bottomSheetRef}
-      index={-1}
+      index={visible ? 0 : -1}
       snapPoints={snapPoints}
       onChange={handleSheetChanges}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
       handleIndicatorStyle={styles.handleIndicator}
+      android_keyboardInputMode="adjustPan"
     >
       <View style={styles.header}>
         <TouchableOpacity
