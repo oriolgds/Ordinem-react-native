@@ -1,4 +1,4 @@
-package com.ordinem
+package com.ordinem.app
 
 import android.app.Application
 import android.content.res.Configuration

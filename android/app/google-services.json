@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "447748932648",
+    "firebase_url": "https://ordinem-app-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "ordinem-app",
+    "storage_bucket": "ordinem-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447748932648:android:ed963e8484de7fb675611d",
+        "android_client_info": {
+          "package_name": "com.ordinem.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "447748932648-kvtr32hsvn7h2n612ujjj6alcso1v3l0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ordinem.app",
+            "certificate_hash": "f878db05e5a5e0241bf84ac79ef2ced7b6532e31"
+          }
+        },
+        {
+          "client_id": "447748932648-neou63uloe2lon48o24si90vc0j9osda.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMjLGzxH6OVDszHfEHGVS5N_SlsU9aDeA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "447748932648-neou63uloe2lon48o24si90vc0j9osda.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

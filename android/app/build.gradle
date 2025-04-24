@@ -86,13 +86,13 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.ordinem"
+    namespace 'com.ordinem.app'
     defaultConfig {
-        applicationId "com.ordinem"
+        applicationId 'com.ordinem.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
     }
     signingConfigs {
         debug {
@@ -173,20 +173,6 @@ dependencies {
     } else {
         implementation jscFlavor
     }
-    
-    // Excluir bibliotecas de soporte antiguas para resolver conflictos
-    configurations.all {
-        resolutionStrategy {
-            force "androidx.core:core:1.13.1"
-            exclude group: "com.android.support", module: "support-compat"
-            exclude group: "com.android.support", module: "support-v4"
-            exclude group: "com.android.support", module: "support-annotations"
-            exclude group: "com.android.support", module: "support-core-utils"
-        }
-    }
-    
-    // Específicamente para react-native-push-notification
-    implementation(project(':react-native-push-notification')) {
-        exclude group: 'com.android.support', module: 'support-compat'
-    }
 }
+
+apply plugin: 'com.google.gms.google-services'
