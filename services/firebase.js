@@ -9,9 +9,7 @@ import {
     sendEmailVerification,
     sendPasswordResetEmail,
     initializeAuth,
-    getReactNativePersistence,
-    setPersistence,
-    browserLocalPersistence
+    getReactNativePersistence
 } from 'firebase/auth';
 import { getDatabase, ref, set, get, update } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,19 +28,23 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializar Auth con persistencia asegurando que funcione en React Native
+// Inicializar Auth con persistencia para React Native
 const auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage)
 });
 
-// Asegurar que la persistencia se aplica correctamente
-setPersistence(auth, browserLocalPersistence)
-    .then(() => {
-        console.log('Persistencia configurada correctamente');
-    })
-    .catch((error) => {
-        console.error('Error configurando persistencia:', error);
-    });
+// Función para recargar la persistencia
+export const reloadAuthPersistence = async () => {
+    try {
+        if (auth._persistenceManager) {
+            await auth._persistenceManager.reload();
+        }
+        return true;
+    } catch (error) {
+        console.error('Error al recargar la persistencia:', error);
+        throw error;
+    }
+};
 
 // Inicializar Database
 const database = getDatabase(app);
@@ -58,16 +60,23 @@ export const signInWithEmail = async (email, password) => {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // Guardar los datos de usuario de forma más robusta
+        // Obtener un token fresco
+        const token = await user.getIdToken(true);
+
+        // Guardar solo datos no sensibles y el token
         const userData = {
             uid: user.uid,
             email: user.email,
             emailVerified: user.emailVerified,
             displayName: user.displayName,
-            lastLoginAt: new Date().toISOString()
+            lastLoginAt: new Date().toISOString(),
+            token: token
         };
 
+        // Almacenar datos de sesión
         await AsyncStorage.setItem('user_credential', JSON.stringify(userData));
+        await AsyncStorage.setItem('userToken', token);
+
         return user;
     } catch (error) {
         throw error;
@@ -480,7 +489,7 @@ export const getProductStats = async () => {
     }
 };
 
-export const linkDevice = async (deviceId: string) => {
+export const linkDevice = async (deviceId) => {
     try {
         const userId = auth.currentUser.uid;
         const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
@@ -527,5 +536,27 @@ export const getLinkedDevices = async () => {
     } catch (error) {
         console.error('Error al obtener dispositivos:', error);
         throw error;
+    }
+};
+
+// Función para verificar y renovar el token
+export const verifyAndRefreshToken = async () => {
+    try {
+        const storedToken = await AsyncStorage.getItem('userToken');
+        if (!storedToken) return null;
+
+        const user = auth.currentUser;
+        if (!user) return null;
+
+        // Verificar si necesitamos renovar el token
+        const newToken = await user.getIdToken(true);
+        await AsyncStorage.setItem('userToken', newToken);
+
+        return user;
+    } catch (error) {
+        console.error('Error al verificar token:', error);
+        // Si hay error, limpiamos los datos almacenados
+        await AsyncStorage.multiRemove(['user_credential', 'userToken']);
+        return null;
     }
 };

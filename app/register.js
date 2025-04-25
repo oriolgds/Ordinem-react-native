@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/hooks/useAuth';
 
 // Registrar el redireccionamiento para autenticación web
 WebBrowser.maybeCompleteAuthSession();
@@ -31,6 +32,22 @@ const Register = () => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const router = useRouter();
+    const { authenticated, loading: authLoading } = useAuth();
+
+    useEffect(() => {
+        if (!authLoading && authenticated) {
+            router.replace('/(tabs)/products');
+        }
+    }, [authenticated, authLoading]);
+
+    // Si está cargando la autenticación, mostrar loading
+    if (authLoading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#6D9EBE" />
+            </View>
+        );
+    }
 
     // Configuración de autenticación con Google
     const [request, response, promptAsync] = Google.useAuthRequest({
@@ -401,4 +418,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Register; 
+export default Register;

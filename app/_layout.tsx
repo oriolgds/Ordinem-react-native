@@ -59,15 +59,22 @@ export default function RootLayout() {
           const userData = JSON.parse(storedUser);
           console.log('Intentando restaurar sesión para:', userData.email);
           
-          // Si no hay usuario autenticado pero tenemos datos guardados
+          // Comprobar si hay un usuario autenticado en Firebase
           if (!auth.currentUser && userData.uid) {
-            // Esperar un momento para que Firebase Auth se inicialice
-            setTimeout(() => {
-              if (!auth.currentUser) {
-                console.log('Forzando reautenticación del usuario');
-                // Aquí podrías implementar una reautenticación silenciosa si es necesario
+            // Intentar reautenticar usando los datos guardados
+            const userToken = await AsyncStorage.getItem('userToken');
+            if (userToken) {
+              try {
+                // Forzar reautenticación de Firebase
+                await auth._persistenceManager.reload();
+                console.log('Sesión restaurada exitosamente');
+              } catch (reAuthError) {
+                console.error('Error al reautenticar:', reAuthError);
+                // Limpiar datos de sesión inválidos
+                await AsyncStorage.removeItem('user_credential');
+                await AsyncStorage.removeItem('userToken');
               }
-            }, 2000);
+            }
           }
         }
         

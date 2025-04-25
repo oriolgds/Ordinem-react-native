@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { auth } from "@/services/firebase";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { User } from "firebase/auth";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { auth, verifyAndRefreshToken } from "@/services/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface AuthState {
   user: User | null;
@@ -18,78 +19,71 @@ export function useAuth() {
   });
   const router = useRouter();
 
-  // Cargar la sesión guardada al inicializar
+  // Intentar restaurar la sesión al iniciar
   useEffect(() => {
-    const loadStoredSession = async () => {
+    const restoreSession = async () => {
       try {
-        const storedUserData = await AsyncStorage.getItem("user_credential");
-        if (storedUserData && !auth.currentUser) {
-          // Si hay datos guardados pero no hay un usuario actualmente autenticado
-          // en Firebase, usamos esta información para mostrar un estado de carga
-          // mientras Firebase restaura automáticamente la sesión
+        // Verificar si tenemos un token válido
+        const user = await verifyAndRefreshToken();
+        if (user) {
+          setAuthState({
+            user,
+            authenticated: true,
+            loading: false,
+          });
+        } else {
           setAuthState({
             user: null,
             authenticated: false,
-            loading: true,
+            loading: false,
           });
         }
       } catch (error) {
-        console.error("Error al cargar la sesión guardada:", error);
+        console.error("Error al restaurar sesión:", error);
+        setAuthState({
+          user: null,
+          authenticated: false,
+          loading: false,
+        });
       }
     };
 
-    loadStoredSession();
+    restoreSession();
   }, []);
 
+  // Escuchar cambios en el estado de autenticación
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Usuario autenticado
         try {
-          // Obtener el token de autenticación
-          const token = await user.getIdToken();
-          
-          // Guardar el token y los datos de usuario en AsyncStorage
-          const userData = {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            emailVerified: user.emailVerified,
-            token: token,
-          };
-          
-          await AsyncStorage.setItem("user", JSON.stringify(userData));
+          // Obtener un token fresco
+          const token = await user.getIdToken(true);
           await AsyncStorage.setItem("userToken", token);
-          
+
           setAuthState({
             user,
             authenticated: true,
             loading: false,
           });
         } catch (error) {
-          console.error("Error al guardar datos de sesión:", error);
+          console.error("Error al actualizar token:", error);
           setAuthState({
-            user,
-            authenticated: true,
+            user: null,
+            authenticated: false,
             loading: false,
           });
         }
       } else {
-        // Usuario no autenticado
+        // Limpiar datos de sesión
+        await AsyncStorage.multiRemove(["user_credential", "userToken"]);
         setAuthState({
           user: null,
           authenticated: false,
           loading: false,
         });
-
-        // Limpiar información de usuario en AsyncStorage
-        await AsyncStorage.removeItem("user");
-        await AsyncStorage.removeItem("userToken");
-        await AsyncStorage.removeItem("user_credential");
       }
     });
 
-    // Limpiar el listener cuando el componente se desmonte
     return () => unsubscribe();
   }, []);
 

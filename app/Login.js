@@ -18,6 +18,7 @@ import { signInWithEmail, signInWithGoogle, signInAnonymously, resetPassword } f
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import { useAuth } from '@/hooks/useAuth';
 
 // Función para detectar si estamos en Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -45,6 +46,22 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const router = useRouter();
+    const { authenticated, loading: authLoading } = useAuth();
+
+    useEffect(() => {
+        if (!authLoading && authenticated) {
+            router.replace('/(tabs)/products');
+        }
+    }, [authenticated, authLoading]);
+
+    // Si está cargando la autenticación, mostrar loading
+    if (authLoading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#6D9EBE" />
+            </View>
+        );
+    }
 
     // Configuración de Google Sign-In si está disponible
     useEffect(() => {
@@ -510,4 +527,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Login; 
+export default Login;
