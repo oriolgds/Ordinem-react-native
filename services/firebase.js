@@ -235,21 +235,6 @@ export const getUserDevices = async (userId) => {
     }
 };
 
-export const getDeviceProducts = async (deviceId) => {
-    try {
-        const productsRef = ref(database, `devices/${deviceId}/products`);
-        const snapshot = await get(productsRef);
-
-        if (snapshot.exists()) {
-            return snapshot.val();
-        } else {
-            return {};
-        }
-    } catch (error) {
-        throw error;
-    }
-};
-
 export const pairDevice = async (userId, deviceId) => {
     try {
         await set(ref(database, `users/${userId}/devices/${deviceId}`), true);
@@ -508,6 +493,17 @@ export const linkDevice = async (deviceId) => {
     }
 };
 
+export const unlinkDevice = async (deviceId) => {
+    try {
+        const userId = auth.currentUser.uid;
+        await set(ref(database, `users/${userId}/devices/${deviceId}`), null);
+        return true;
+    } catch (error) {
+        console.error('Error al desvincular dispositivo:', error);
+        throw error;
+    }
+};
+
 export const getLinkedDevices = async () => {
     try {
         const userId = auth.currentUser.uid;
@@ -525,9 +521,13 @@ export const getLinkedDevices = async () => {
             const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
             const deviceSnapshot = await get(deviceRef);
             if (deviceSnapshot.exists()) {
+                const deviceData = deviceSnapshot.val();
+                const products = deviceData.products || {};
+
                 linkedDevices.push({
                     id: deviceId,
-                    ...deviceSnapshot.val()
+                    last_update: deviceData.last_update,
+                    product_count: Object.keys(products).length
                 });
             }
         }
@@ -535,6 +535,33 @@ export const getLinkedDevices = async () => {
         return linkedDevices;
     } catch (error) {
         console.error('Error al obtener dispositivos:', error);
+        throw error;
+    }
+};
+
+export const getDeviceProducts = async (deviceId) => {
+    try {
+        const deviceRef = ref(database, `ordinem/devices/${deviceId}/products`);
+        const snapshot = await get(deviceRef);
+
+        if (!snapshot.exists()) {
+            return [];
+        }
+
+        const products = [];
+        const productsData = snapshot.val();
+
+        for (const [barcode, data] of Object.entries(productsData)) {
+            products.push({
+                barcode,
+                expiry_date: data.expiry_date,
+                last_detected: data.last_detected
+            });
+        }
+
+        return products;
+    } catch (error) {
+        console.error('Error al obtener productos del dispositivo:', error);
         throw error;
     }
 };
