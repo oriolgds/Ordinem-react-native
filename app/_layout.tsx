@@ -61,13 +61,13 @@ export default function RootLayout() {
           
           // Comprobar si hay un usuario autenticado en Firebase
           if (!auth.currentUser && userData.uid) {
-            // Intentar reautenticar usando los datos guardados
+            // Intentar reautenticar usando el token guardado
             const userToken = await AsyncStorage.getItem('userToken');
             if (userToken) {
               try {
-                // Forzar reautenticación de Firebase
-                await auth._persistenceManager.reload();
-                console.log('Sesión restaurada exitosamente');
+                // Verificar que el token sea válido
+                const { verifyAndRefreshToken } = await import('@/services/firebase');
+                await verifyAndRefreshToken();
               } catch (reAuthError) {
                 console.error('Error al reautenticar:', reAuthError);
                 // Limpiar datos de sesión inválidos

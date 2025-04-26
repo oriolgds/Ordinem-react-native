@@ -48,11 +48,21 @@ const Login = () => {
     const router = useRouter();
     const { authenticated, loading: authLoading } = useAuth();
 
+    // Efecto para redirección
     useEffect(() => {
         if (!authLoading && authenticated) {
             router.replace('/(tabs)/products');
         }
     }, [authenticated, authLoading]);
+
+    // Efecto para Google Sign-In
+    useEffect(() => {
+        if (!isExpoGo && GoogleSignin) {
+            GoogleSignin.configure({
+                webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+            });
+        }
+    }, []);
 
     // Si está cargando la autenticación, mostrar loading
     if (authLoading) {
@@ -62,16 +72,6 @@ const Login = () => {
             </View>
         );
     }
-
-    // Configuración de Google Sign-In si está disponible
-    useEffect(() => {
-        if (GoogleSignin && !isExpoGo) {
-            GoogleSignin.configure({
-                webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
-                // No se necesitan más parámetros para Android
-            });
-        }
-    }, []);
 
     // Validar formulario
     const validateForm = () => {

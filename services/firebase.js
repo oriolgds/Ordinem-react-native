@@ -543,19 +543,31 @@ export const getLinkedDevices = async () => {
 export const verifyAndRefreshToken = async () => {
     try {
         const storedToken = await AsyncStorage.getItem('userToken');
-        if (!storedToken) return null;
+        const storedUser = await AsyncStorage.getItem('user_credential');
+
+        if (!storedToken || !storedUser) {
+            return null;
+        }
 
         const user = auth.currentUser;
-        if (!user) return null;
+        if (!user) {
+            // Intentar recargar el usuario actual
+            await auth.signInWithCustomToken(storedToken).catch(() => null);
+            return auth.currentUser;
+        }
 
-        // Verificar si necesitamos renovar el token
-        const newToken = await user.getIdToken(true);
-        await AsyncStorage.setItem('userToken', newToken);
-
-        return user;
+        // Verificar y renovar el token solo si hay un usuario autenticado
+        try {
+            const newToken = await user.getIdToken(true);
+            await AsyncStorage.setItem('userToken', newToken);
+            return user;
+        } catch (tokenError) {
+            console.error('Error al renovar token:', tokenError);
+            return null;
+        }
     } catch (error) {
         console.error('Error al verificar token:', error);
-        // Si hay error, limpiamos los datos almacenados
+        // Limpiar datos almacenados solo si hay un error real
         await AsyncStorage.multiRemove(['user_credential', 'userToken']);
         return null;
     }
