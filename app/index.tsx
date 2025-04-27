@@ -36,11 +36,13 @@ export default function Index() {
   if (loading || isInitialLoading) {
     return (
       <View style={styles.splashContainer}>
-        <Image
-          source={require('@/assets/images/ordinem-logo.png')}
-          style={styles.splashLogo}
-          resizeMode="contain"
-        />
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('@/assets/images/ordinem-logo.png')}
+            style={styles.splashLogo}
+            resizeMode="cover"
+          />
+        </View>
         <ActivityIndicator size="large" color="#6D9EBE" style={styles.loader} />
       </View>
     );
@@ -61,12 +63,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
+  logoContainer: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
   splashLogo: {
     width: 150,
     height: 150,
-    marginBottom: 20,
   },
   loader: {
-    marginTop: 20,
+    marginTop: 30,
   }
 });

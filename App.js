@@ -18,17 +18,17 @@ LogBox.ignoreLogs([
 // Punto de entrada de la aplicación
 export default function App() {
     const [isReady, setIsReady] = useState(false);
-
+    
     useEffect(() => {
         // Función para inicializar la aplicación
         const initialize = async () => {
             try {
                 // Inicializar notificaciones
                 await initNotifications();
-
+                
                 // Simular un pequeño retraso para asegurar que la comprobación de autenticación se haya completado
                 await new Promise(resolve => setTimeout(resolve, 1000));
-
+                
                 setIsReady(true);
             } catch (error) {
                 console.warn('Error al inicializar la aplicación:', error);
@@ -43,11 +43,13 @@ export default function App() {
     if (!isReady) {
         return (
             <View style={styles.splashContainer}>
-                <Image
-                    source={require('./assets/images/ordinem-logo.png')}
-                    style={styles.splashLogo}
-                    resizeMode="contain"
-                />
+                <View style={styles.logoContainer}>
+                    <Image
+                        source={require('./assets/images/ordinem-logo.png')}
+                        style={styles.splashLogo}
+                        resizeMode="cover"
+                    />
+                </View>
                 <ActivityIndicator size="large" color="#6D9EBE" style={styles.loader} />
             </View>
         );
@@ -70,11 +72,25 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
     },
+    logoContainer: {
+        width: 150,
+        height: 150,
+        borderRadius: 75,
+        backgroundColor: '#FFFFFF',
+        overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+    },
     splashLogo: {
         width: 150,
         height: 150,
     },
     loader: {
-        marginTop: 20,
+        marginTop: 30,
     }
 });
