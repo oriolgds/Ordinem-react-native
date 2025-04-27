@@ -1,3 +1,25 @@
+/**
+ * Página del Scanner de Productos de Ordinem
+ * 
+ * Este componente proporciona un escáner de códigos de barras para consultar información
+ * nutricional de productos desde la base de datos de OpenFoodFacts. Sus principales
+ * funcionalidades son:
+ * 
+ * - Escanear códigos de barras EAN-8, EAN-13, UPC-A y UPC-E
+ * - Buscar automáticamente información del producto en OpenFoodFacts
+ * - Mostrar información nutricional detallada (Nutri-Score, Eco-Score)
+ * - Visualizar ingredientes y valores nutricionales por 100g
+ * - Permitir escanear múltiples productos de forma consecutiva
+ * 
+ * IMPORTANTE: A diferencia de la página principal de productos, este scanner NO añade
+ * productos al inventario del armario Ordinem. Funciona como un escáner informativo,
+ * similar a aplicaciones como Yuka, diseñado para consultar información de productos
+ * mientras se está en el supermercado antes de comprarlos.
+ * 
+ * Los productos en el inventario de los armarios son detectados y añadidos automáticamente
+ * por los dispositivos Ordinem mediante sus propios sensores, no mediante este scanner.
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,

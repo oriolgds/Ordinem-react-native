@@ -1,3 +1,22 @@
+/**
+ * Página principal de productos de Ordinem
+ * 
+ * Este componente es la pantalla principal de la aplicación donde se muestran todos los productos
+ * registrados en los armarios del usuario. Sus principales funcionalidades son:
+ * 
+ * - Mostrar una lista de productos de todos los armarios vinculados
+ * - Obtener y mostrar información detallada de OpenFoodFacts para cada producto (imágenes, marcas, etc.)
+ * - Permitir filtrar productos por categoría
+ * - Buscar productos por nombre o código de barras
+ * - Seleccionar entre diferentes armarios vinculados
+ * - Visualizar el estado de caducidad de los productos (caducados, próximos a caducar, etc.)
+ * - Acceder a la información nutricional detallada al pulsar en un producto
+ * 
+ * La página se comunica con la API de OpenFoodFacts para enriquecer los datos básicos de los productos
+ * almacenados en la base de datos de Firebase. Al obtener datos nutricionales completos, imágenes,
+ * y clasificaciones (Nutri-Score, Eco-Score), ofrece una experiencia más informativa para el usuario.
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
