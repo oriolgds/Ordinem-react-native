@@ -20,21 +20,54 @@ jobs:
           node-version: 18.x
           cache: "npm"
 
+      # Caché específica para node_modules
+      - name: 💾 Cache node_modules
+        uses: actions/cache@v3
+        id: node-modules-cache
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
       - name: 🏗 Setup Java for Android builds
         uses: actions/setup-java@v4
         with:
           distribution: "zulu"
           java-version: "17"
 
+      # Caché de Gradle para builds de Android
+      - name: 💾 Cache Gradle
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: 📦 Install dependencies
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm install
 
+      # Caché para EAS CLI
+      - name: 💾 Cache EAS CLI
+        uses: actions/cache@v3
+        with:
+          path: ~/.eas-cli
+          key: ${{ runner.os }}-eas-cli-${{ hashFiles('**/eas.json') }}
+          restore-keys: |
+            ${{ runner.os }}-eas-cli-
+          
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      # Resto del workflow...
       - name: 🔐 Verify EAS authentication
         run: npx eas whoami
         env:
