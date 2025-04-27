@@ -34,11 +34,26 @@ const Register = () => {
     const router = useRouter();
     const { authenticated, loading: authLoading } = useAuth();
 
+    // Configuración de autenticación con Google - MOVER AQUÍ ARRIBA, antes de cualquier return
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        expoClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+        androidClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+        webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+    });
+
     useEffect(() => {
         if (!authLoading && authenticated) {
             router.replace('/(tabs)/products');
         }
     }, [authenticated, authLoading]);
+
+    // Manejar la respuesta de Google
+    React.useEffect(() => {
+        if (response?.type === 'success') {
+            const { id_token } = response.params;
+            handleGoogleSignIn(id_token);
+        }
+    }, [response]);
 
     // Si está cargando la autenticación, mostrar loading
     if (authLoading) {
@@ -48,21 +63,6 @@ const Register = () => {
             </View>
         );
     }
-
-    // Configuración de autenticación con Google
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        expoClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
-        androidClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
-        webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
-    });
-
-    // Manejar la respuesta de Google
-    React.useEffect(() => {
-        if (response?.type === 'success') {
-            const { id_token } = response.params;
-            handleGoogleSignIn(id_token);
-        }
-    }, [response]);
 
     // Validar formulario
     const validateForm = () => {

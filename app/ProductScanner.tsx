@@ -57,30 +57,9 @@ export default function ProductScanner() {
   const [modalVisible, setModalVisible] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ProductData | null>(null);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
-  const [devices, setDevices] = useState<Array<{id: string, product_count: number}>>([]);
-  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
-  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
-  const [expiryDate, setExpiryDate] = useState<string>('');
-  const [showExpiryModal, setShowExpiryModal] = useState(false);
-  const { devices: linkedDevices } = useProducts();
   
   const router = useRouter();
   const navigation = useNavigation();
-
-  // Función para formatear la fecha a YYYY-MM-DD
-  const formatDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  // Inicializar fecha de caducidad a 7 días en el futuro
-  useEffect(() => {
-    const defaultDate = new Date();
-    defaultDate.setDate(defaultDate.getDate() + 7);
-    setExpiryDate(formatDate(defaultDate));
-  }, []);
 
   useEffect(() => {
     const getBarCodeScannerPermissions = async () => {
@@ -90,35 +69,6 @@ export default function ProductScanner() {
 
     getBarCodeScannerPermissions();
   }, []);
-
-  // Cargar dispositivos vinculados
-  useEffect(() => {
-    const loadDevices = async () => {
-      try {
-        const linkedDevices = await getLinkedDevices();
-        setDevices(linkedDevices);
-        
-        // Si solo hay un dispositivo, seleccionarlo automáticamente
-        if (linkedDevices.length === 1) {
-          setSelectedDevice(linkedDevices[0].id);
-        }
-      } catch (error) {
-        console.error('Error al cargar dispositivos:', error);
-      }
-    };
-    
-    loadDevices();
-  }, []);
-
-  // Actualizar con el último estado de linkedDevices
-  useEffect(() => {
-    if (linkedDevices.length > 0) {
-      setDevices(linkedDevices);
-      if (linkedDevices.length === 1) {
-        setSelectedDevice(linkedDevices[0].id);
-      }
-    }
-  }, [linkedDevices]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -142,44 +92,30 @@ export default function ProductScanner() {
     return unsubscribe;
   }, [navigation]);
 
-  // Guardar producto en Firebase
-  const saveProductToDevice = async (barcode: string, productData: any) => {
-    if (!selectedDevice) {
-      // Si no hay dispositivo seleccionado, mostrar selector
-      setShowDeviceSelector(true);
-      return false;
-    }
+  /**
+   * IMPORTANTE: Este scanner de productos es solo para consultar información nutricional
+   * (similar a Yuka) cuando estás en el supermercado. NO añade productos al inventario.
+   * Los productos son detectados y añadidos automáticamente por el armario Ordinem.
+   */
 
+  // Función para mostrar detalles del producto cuando se escanea
+  // No guarda el producto en Firebase, solo muestra su información nutricional
+  const showProductDetails = async (barcode: string, productData: any) => {
     try {
-      const database = getDatabase();
-      const now = new Date().toISOString();
-      
-      // Crear referencia al producto en la estructura Firebase
-      const productRef = ref(
-        database, 
-        `ordinem/devices/${selectedDevice}/products/${barcode}`
-      );
-
-      // Guardar datos del producto
-      await set(productRef, {
-        product_name: productData.product_name,
-        category: productData.categories_hierarchy?.[0]?.split(':')?.[1] || 'Alimentos',
-        expiry_date: expiryDate,
-        last_detected: now,
+      // Actualizar el estado del producto escaneado
+      setScannedProduct({
+        product: productData,
+        status: 1
       });
-
-      Alert.alert(
-        'Producto guardado',
-        'El producto ha sido añadido correctamente al dispositivo.',
-        [{ text: 'OK' }]
-      );
       
+      // Mostrar modal con información nutricional
+      setModalVisible(true);
       return true;
     } catch (error) {
-      console.error('Error al guardar producto:', error);
+      console.error('Error al mostrar detalles del producto:', error);
       Alert.alert(
         'Error',
-        'No se pudo guardar el producto. Por favor, inténtalo de nuevo.',
+        'No se pudo mostrar la información del producto. Por favor, inténtalo de nuevo.',
         [{ text: 'OK' }]
       );
       return false;
@@ -192,14 +128,16 @@ export default function ProductScanner() {
       setModalVisible(false);
     }
     
-    // Actualizamos el producto y abrimos el modal con la nueva información
+    // Actualizamos el producto y abrimos el modal con la información nutricional
     setScannedProduct({
       product: product,
       status: 1
     });
     
-    // Mostrar modal para configurar fecha de caducidad
-    setShowExpiryModal(true);
+    // Mostrar el modal con la información del producto
+    setTimeout(() => {
+      setModalVisible(true);
+    }, 300);
   };
 
   const fetchProductInfo = async (barcode: string) => {
@@ -258,50 +196,11 @@ export default function ProductScanner() {
     router.back();
   };
 
-  const handleSaveProduct = async () => {
-    if (!scannedProduct || !scannedBarcode) {
-      Alert.alert('Error', 'No hay ningún producto para guardar.');
-      return;
-    }
-
-    setShowExpiryModal(false);
-    
-    // Si no hay dispositivos vinculados, mostrar alerta
-    if (devices.length === 0) {
-      Alert.alert(
-        'Sin dispositivos',
-        'No tienes ningún dispositivo vinculado. ¿Quieres vincular uno ahora?',
-        [
-          { text: 'No', style: 'cancel' },
-          { 
-            text: 'Sí', 
-            onPress: () => {
-              router.push('/pair-device');
-            }
-          }
-        ]
-      );
-      return;
-    }
-
-    // Si hay que seleccionar dispositivo, mostrar el selector
-    if (!selectedDevice && devices.length > 1) {
-      setShowDeviceSelector(true);
-      return;
-    }
-
-    // Guardar el producto
-    const success = await saveProductToDevice(
-      scannedBarcode, 
-      scannedProduct.product
-    );
-    
-    if (success) {
-      // Mostrar los detalles del producto tras guardar
-      setTimeout(() => {
-        setModalVisible(true);
-      }, 500);
-    }
+// Actualizado para el flujo informativo (solo consulta)
+  const handleScanAgain = () => {
+    setScanned(false);
+    setScannedProduct(null);
+    setScannedBarcode('');
   };
 
   if (hasPermission === null) {
@@ -380,114 +279,11 @@ export default function ProductScanner() {
         {scanned && !loading && (
           <TouchableOpacity
             style={styles.rescanButton}
-            onPress={() => setScanned(false)}
+            onPress={handleScanAgain}
           >
             <Text style={styles.rescanButtonText}>Escanear otro</Text>
           </TouchableOpacity>
         )}
-
-        {/* Modal para configurar fecha de caducidad */}
-        <Modal
-          visible={showExpiryModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowExpiryModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Establecer fecha de caducidad</Text>
-              
-              {scannedProduct && (
-                <Text style={styles.productName}>
-                  {scannedProduct.product.product_name}
-                </Text>
-              )}
-              
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Fecha de caducidad:</Text>
-                <TextInput
-                  style={styles.dateInput}
-                  value={expiryDate}
-                  onChangeText={setExpiryDate}
-                  placeholder="AAAA-MM-DD"
-                  keyboardType="numeric"
-                />
-              </View>
-              
-              <View style={styles.buttonRow}>
-                <TouchableOpacity 
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => {
-                    setShowExpiryModal(false);
-                    setScanned(false);
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.modalButton, styles.saveButton]}
-                  onPress={handleSaveProduct}
-                >
-                  <Text style={styles.saveButtonText}>Guardar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal para seleccionar dispositivo */}
-        <Modal
-          visible={showDeviceSelector}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowDeviceSelector(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.deviceSelectorContent}>
-              <Text style={styles.modalTitle}>Seleccionar armario</Text>
-              
-              <ScrollView style={styles.deviceList}>
-                {devices.map(device => (
-                  <TouchableOpacity
-                    key={device.id}
-                    style={styles.deviceItem}
-                    onPress={async () => {
-                      setSelectedDevice(device.id);
-                      setShowDeviceSelector(false);
-                      // Intentar guardar el producto después de seleccionar dispositivo
-                      if (scannedProduct) {
-                        await saveProductToDevice(
-                          scannedBarcode, 
-                          scannedProduct.product
-                        );
-                        setModalVisible(true);
-                      }
-                    }}
-                  >
-                    <Ionicons name="cube-outline" size={24} color="#6D9EBE" />
-                    <View style={styles.deviceItemInfo}>
-                      <Text style={styles.deviceItemName}>Armario {device.id}</Text>
-                      <Text style={styles.deviceItemCount}>
-                        {device.product_count} productos
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={24} color="#999" />
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              
-              <TouchableOpacity 
-                style={styles.cancelDeviceButton}
-                onPress={() => {
-                  setShowDeviceSelector(false);
-                  setScanned(false);
-                }}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
 
         <ProductDetailsModal 
           visible={modalVisible}

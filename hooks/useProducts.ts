@@ -10,13 +10,16 @@ import { onValue, ref, getDatabase } from "firebase/database";
 export interface Product {
   id: string;
   name: string;
-  category: string;
+  category?: string;
   expiryDate: string;
   location: string;
   quantity: number;
   barcode?: string;
   notes?: string;
-  deviceId?: string; // Añadido para identificar a qué dispositivo pertenece
+  deviceId?: string;
+  imageUrl?: string;
+  brand?: string;
+  last_detected?: string;
 }
 
 export interface ProductFilters {
@@ -83,14 +86,19 @@ export function useProducts() {
         // Transformar a formato compatible
         const formattedProducts = deviceProducts.map((product) => ({
           id: product.barcode,
-          name: product.product_name || "Producto sin nombre",
-          category: product.category || "Sin categoría",
-          expiryDate: product.expiry_date,
+          name:
+            product.product_name ||
+            product.name ||
+            `Producto ${product.barcode.slice(-4)}`,
+          category: product.category || "",
+          expiryDate: product.expiry_date || "",
           barcode: product.barcode,
           location: "Armario principal",
           quantity: 1,
           deviceId: selectedDevice,
-          // Agregar campos adicionales si están disponibles
+          last_detected: product.last_detected,
+          brand: product.brand || "",
+          imageUrl: product.image_url || "",
           notes: product.notes || "",
         }));
 
@@ -130,14 +138,17 @@ export function useProducts() {
         ([barcode, data]: [string, any]) => ({
           id: barcode,
           barcode,
-          name: data.product_name || `Producto ${barcode}`, // Usar product_name si existe, si no usar el código de barras como respaldo
-          category: data.category || "Sin categoría",
-          expiryDate: data.expiry_date,
-          location: "Armario principal",
-          quantity: 1,
+          name:
+            data.product_name || data.name || `Producto ${barcode.slice(-4)}`,
+          category: data.category || "",
+          expiryDate: data.expiry_date || "",
+          location: data.location || "Armario principal",
+          quantity: data.quantity || 1,
           deviceId: selectedDevice,
           notes: data.notes || "",
-          last_detected: data.last_detected,
+          last_detected: data.last_detected || "",
+          brand: data.brand || "",
+          imageUrl: data.image_url || "",
         })
       );
 
@@ -179,8 +190,10 @@ export function useProducts() {
     let filtered = [...products];
 
     if (query) {
-      filtered = filtered.filter((product) =>
-        product.name.toLowerCase().includes(query.toLowerCase())
+      filtered = filtered.filter(
+        (product) =>
+          product.name.toLowerCase().includes(query.toLowerCase()) ||
+          product.barcode?.toLowerCase().includes(query.toLowerCase())
       );
     }
 

@@ -33,7 +33,14 @@ export default function PairDeviceScreen() {
       Alert.alert(
         'Éxito',
         'Dispositivo vinculado correctamente',
-        [{ text: 'OK', onPress: () => router.back() }]
+        [{ 
+          text: 'OK', 
+          onPress: () => {
+            // En lugar de solo volver atrás, navegar directamente a la pantalla de productos
+            // para forzar una recarga de los datos
+            router.replace('/(tabs)/products');
+          }
+        }]
       );
     } catch (error) {
       console.error('Error al vincular dispositivo:', error);

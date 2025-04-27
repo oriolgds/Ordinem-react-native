@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -14,47 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ProductDetailsModal } from '@/components/ProductDetailsModal';
 import { useProducts, Product, Device } from '@/hooks/useProducts';
-
-interface ProductCardProps {
-  product: Product;
-  onPress: (product: Product) => void;
-}
+import { ProductCard } from '@/components/ProductCard';
 
 interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
 }
-
-// Componente de tarjeta de producto
-const ProductCard = ({ product, onPress }: ProductCardProps) => {
-  const isExpiring = new Date(product.expiryDate) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const isExpired = new Date(product.expiryDate) < new Date();
-  
-  return (
-    <TouchableOpacity 
-      style={[
-        styles.card, 
-        isExpired ? styles.cardExpired : isExpiring ? styles.cardExpiring : null
-      ]} 
-      onPress={() => onPress(product)}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productCategory}>{product.category}</Text>
-      </View>
-      
-      <View style={styles.cardBody}>
-        <Text style={styles.productLocation}>Ubicación: {product.location}</Text>
-        <Text style={[
-          styles.expiryDate,
-          isExpired ? styles.textExpired : isExpiring ? styles.textExpiring : null
-        ]}>
-          Expira: {new Date(product.expiryDate).toLocaleDateString('es-ES')}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
 
 // Componente de barra de búsqueda
 const SearchBar = ({ value, onChangeText }: SearchBarProps) => {
@@ -105,7 +70,7 @@ const DevicePicker = ({ devices, selectedDevice, onSelectDevice }: DevicePickerP
       <Modal
         visible={modalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
         <TouchableOpacity 
@@ -113,7 +78,7 @@ const DevicePicker = ({ devices, selectedDevice, onSelectDevice }: DevicePickerP
           activeOpacity={1}
           onPress={() => setModalVisible(false)}
         >
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { transform: [{translateY: 0}] }]}>
             <Text style={styles.modalTitle}>Seleccionar armario</Text>
             {devices.map(device => (
               <TouchableOpacity
@@ -179,19 +144,90 @@ export default function ProductsScreen() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productDetailsFromOFF, setProductDetailsFromOFF] = useState<any>(null);
+  const [loadingProductDetails, setLoadingProductDetails] = useState(false);
   const router = useRouter();
+
+  // Estado para almacenar los datos de OpenFoodFacts de todos los productos
+  const [productsOFFData, setProductsOFFData] = useState<{[barcode: string]: any}>({});
+  
+  // Función para obtener datos de OpenFoodFacts para un código de barras
+  const fetchProductFromOpenFoodFacts = useCallback(async (barcode: string) => {
+    try {
+      setLoadingProductDetails(true);
+      const response = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
+      );
+      const data = await response.json();
+      
+      if (data.status === 1) {
+        return data.product;
+      } 
+      return null;
+    } catch (error) {
+      console.error('Error al obtener información del producto:', error);
+      return null;
+    } finally {
+      setLoadingProductDetails(false);
+    }
+  }, []);
+
+  // Función para cargar datos de OpenFoodFacts para todos los productos
+  const fetchAllProductsData = useCallback(async (productsList: Product[]) => {
+    const productsWithBarcode = productsList.filter(p => p.barcode);
+    
+    // Crear un conjunto para evitar duplicados
+    const uniqueBarcodes = new Set(productsWithBarcode.map(p => p.barcode));
+    const barcodeData: {[barcode: string]: any} = {...productsOFFData};
+    
+    // Procesar en lotes para no saturar la API
+    const batchSize = 3;
+    const barcodesToProcess = Array.from(uniqueBarcodes).filter(barcode => 
+      barcode && !productsOFFData[barcode as string]
+    );
+    
+    for (let i = 0; i < barcodesToProcess.length; i += batchSize) {
+      const batch = barcodesToProcess.slice(i, i + batchSize);
+      const promises = batch.map(async (barcode) => {
+        if (barcode) {
+          const data = await fetchProductFromOpenFoodFacts(barcode as string);
+          if (data) {
+            barcodeData[barcode as string] = data;
+          }
+        }
+      });
+      
+      await Promise.all(promises);
+    }
+    
+    setProductsOFFData(barcodeData);
+  }, [fetchProductFromOpenFoodFacts, productsOFFData]);
+  
+  // Cargar datos de OpenFoodFacts cuando cambian los productos
+  useEffect(() => {
+    if (products.length > 0) {
+      fetchAllProductsData(products);
+    }
+  }, [products, fetchAllProductsData]);
+
+  // Navegar a detalle del producto
+  const handleProductPress = (product: Product) => {
+    setSelectedProduct(product);
+    
+    if (product.barcode && productsOFFData[product.barcode]) {
+      setProductDetailsFromOFF(productsOFFData[product.barcode]);
+    } else {
+      setProductDetailsFromOFF(null);
+    }
+    
+    setModalVisible(true);
+  };
 
   // Efecto para filtrar productos cuando cambian los filtros o los productos
   useEffect(() => {
     const filtered = filterProducts(searchQuery, categoryFilter, selectedDevice || null);
     setFilteredProducts(filtered);
   }, [searchQuery, categoryFilter, selectedDevice, products]);
-
-  // Navegar a detalle del producto
-  const handleProductPress = (product: Product) => {
-    setSelectedProduct(product);
-    setModalVisible(true);
-  };
 
   // Cambiar filtro de categoría
   const handleCategoryFilter = (category: string) => {
@@ -274,34 +310,63 @@ export default function ProductsScreen() {
         />
       </View>
 
-      <View style={styles.categoryFilters}>
-        {categories.map(category => (
-          <TouchableOpacity 
-            key={category}
-            style={[
-              styles.categoryButton,
-              categoryFilter === category && styles.categoryButtonActive
-            ]}
-            onPress={() => handleCategoryFilter(category)}
-          >
-            <Text style={[
-              styles.categoryButtonText,
-              categoryFilter === category && styles.categoryButtonTextActive
-            ]}>
-              {category}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {categories.length > 0 && (
+        <View style={styles.categoryFilters}>
+          {categories.map(category => (
+            category ? (
+              <TouchableOpacity 
+                key={category}
+                style={[
+                  styles.categoryButton,
+                  categoryFilter === category && styles.categoryButtonActive
+                ]}
+                onPress={() => handleCategoryFilter(category)}
+              >
+                <Text style={[
+                  styles.categoryButtonText,
+                  categoryFilter === category && styles.categoryButtonTextActive
+                ]}>
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ) : null
+          ))}
+        </View>
+      )}
 
       <FlatList
         data={filteredProducts}
-        renderItem={({ item }) => (
-          <ProductCard 
-            product={item} 
-            onPress={handleProductPress}
-          />
-        )}
+        renderItem={({ item }) => {
+          // Enriquecer el producto con datos de OpenFoodFacts si están disponibles
+          const enrichedProduct = { ...item };
+          
+          // Si hay datos disponibles de OpenFoodFacts, actualizar los atributos del producto
+          if (item.barcode && productsOFFData[item.barcode]) {
+            const offData = productsOFFData[item.barcode];
+            
+            // Usar el nombre de OpenFoodFacts si está disponible
+            if (offData.product_name) {
+              enrichedProduct.name = offData.product_name;
+            }
+            
+            // Usar la imagen de OpenFoodFacts si está disponible
+            if (offData.image_url) {
+              enrichedProduct.imageUrl = offData.image_url;
+            }
+            
+            // Añadir marca si está disponible
+            if (offData.brands && !enrichedProduct.brand) {
+              enrichedProduct.brand = offData.brands;
+            }
+          }
+          
+          return (
+            <ProductCard 
+              product={enrichedProduct}
+              onPress={handleProductPress}
+            />
+          );
+        }}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -331,31 +396,31 @@ export default function ProductsScreen() {
       <ProductDetailsModal 
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        productData={selectedProduct ? {
+        productData={productDetailsFromOFF ? {
           product: {
-            product_name: selectedProduct.name,
-            brands: '',
-            image_url: '',
-            nutriscore_grade: undefined,
-            ecoscore_grade: undefined,
-            ingredients_text: '',
+            product_name: productDetailsFromOFF.product_name || selectedProduct?.name,
+            brands: productDetailsFromOFF.brands || '',
+            image_url: productDetailsFromOFF.image_url || selectedProduct?.imageUrl || '',
+            nutriscore_grade: productDetailsFromOFF.nutriscore_grade || undefined,
+            ecoscore_grade: productDetailsFromOFF.ecoscore_grade || undefined,
+            ingredients_text: productDetailsFromOFF.ingredients_text || '',
             nutriments: {
-              energy_100g: 0,
-              proteins_100g: 0,
-              carbohydrates_100g: 0,
-              fat_100g: 0,
-              fiber_100g: 0,
-              salt_100g: 0,
-              sugars_100g: 0,
-              saturated_fat_100g: 0,
-              sodium_100g: 0,
-              calcium_100g: 0,
-              iron_100g: 0,
-              trans_fat_100g: 0,
-              cholesterol_100g: 0,
-              vitamin_a_100g: 0,
-              vitamin_c_100g: 0,
-              vitamin_d_100g: 0
+              energy_100g: productDetailsFromOFF.nutriments?.energy_100g || 0,
+              proteins_100g: productDetailsFromOFF.nutriments?.proteins_100g || 0,
+              carbohydrates_100g: productDetailsFromOFF.nutriments?.carbohydrates_100g || 0,
+              fat_100g: productDetailsFromOFF.nutriments?.fat_100g || 0,
+              fiber_100g: productDetailsFromOFF.nutriments?.fiber_100g || 0,
+              salt_100g: productDetailsFromOFF.nutriments?.salt_100g || 0,
+              sugars_100g: productDetailsFromOFF.nutriments?.sugars_100g || 0,
+              saturated_fat_100g: productDetailsFromOFF.nutriments?.saturated_fat_100g || 0,
+              sodium_100g: productDetailsFromOFF.nutriments?.sodium_100g || 0,
+              calcium_100g: productDetailsFromOFF.nutriments?.calcium_100g || 0,
+              iron_100g: productDetailsFromOFF.nutriments?.iron_100g || 0,
+              trans_fat_100g: productDetailsFromOFF.nutriments?.trans_fat_100g || 0,
+              cholesterol_100g: productDetailsFromOFF.nutriments?.cholesterol_100g || 0,
+              vitamin_a_100g: productDetailsFromOFF.nutriments?.vitamin_a_100g || 0,
+              vitamin_c_100g: productDetailsFromOFF.nutriments?.vitamin_c_100g || 0,
+              vitamin_d_100g: productDetailsFromOFF.nutriments?.vitamin_d_100g || 0
             }
           },
           status: 1
@@ -399,11 +464,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#E1E1E8',
+    flexWrap: 'wrap',
   },
   categoryButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginRight: 8,
+    marginBottom: 8,
     borderRadius: 20,
     backgroundColor: '#F2F2F7',
   },
@@ -419,68 +486,12 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+    paddingBottom: 80, // Espacio para el FAB button
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardExpiring: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#F9A826',
-  },
-  cardExpired: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF5252',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  cardBody: {
-    marginTop: 8,
-  },
-  productName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F1F3C',
-  },
-  productCategory: {
-    fontSize: 14,
-    color: '#6D9EBE',
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  productLocation: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  expiryDate: {
-    fontSize: 14,
-    color: '#666',
-  },
-  textExpiring: {
-    color: '#F9A826',
-    fontWeight: 'bold',
-  },
-  textExpired: {
-    color: '#FF5252',
-    fontWeight: 'bold',
   },
   fabButton: {
     position: 'absolute',
@@ -567,6 +578,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
+    marginTop: 40,
   },
   emptyTitle: {
     marginTop: 12,
@@ -579,17 +591,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
-  },
-  emptyButton: {
-    marginTop: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: '#6D9EBE',
-  },
-  emptyButtonText: {
-    color: 'white',
-    fontWeight: '500',
   },
   welcomeContainer: {
     flex: 1,

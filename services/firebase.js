@@ -9,7 +9,8 @@ import {
     sendEmailVerification,
     sendPasswordResetEmail,
     initializeAuth,
-    getReactNativePersistence
+    getReactNativePersistence,
+    signInWithCustomToken
 } from 'firebase/auth';
 import { getDatabase, ref, set, get, update } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -605,10 +606,12 @@ export const getDeviceProducts = async (deviceId) => {
             for (const [barcode, data] of Object.entries(productsData)) {
                 products.push({
                     barcode,
-                    product_name: data.product_name || `Producto ${barcode}`,
+                    product_name: data.product_name || data.name || `Producto ${barcode.slice(-4)}`,
+                    brand: data.brand || "",
                     category: data.category || "Sin categoría",
                     expiry_date: data.expiry_date,
-                    last_detected: data.last_detected
+                    last_detected: data.last_detected,
+                    image_url: data.image_url || ""
                 });
             }
 
@@ -636,9 +639,18 @@ export const verifyAndRefreshToken = async () => {
 
         const user = auth.currentUser;
         if (!user) {
-            // Intentar recargar el usuario actual
-            await auth.signInWithCustomToken(storedToken).catch(() => null);
-            return auth.currentUser;
+            // No podemos usar signInWithCustomToken con un ID token normal
+            // En lugar de eso, intentamos cargar el usuario desde el almacenamiento
+            try {
+                const parsedUser = JSON.parse(storedUser);
+                // Si el usuario tiene credenciales almacenadas, podemos intentar
+                // iniciar sesión con el método adecuado según el tipo de autenticación
+                console.log('Usuario no autenticado. Intentando recuperar sesión.');
+                return null;
+            } catch (parseError) {
+                console.error('Error al analizar datos de usuario almacenados:', parseError);
+                return null;
+            }
         }
 
         // Verificar y renovar el token solo si hay un usuario autenticado
