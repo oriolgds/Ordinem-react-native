@@ -28,7 +28,7 @@ const MainTabNavigator = () => {
                     let iconName;
 
                     if (route.name === 'Products') {
-                        iconName = focused ? 'ios-list' : 'ios-list-outline';
+                        iconName = focused ? 'cube' : 'cube-outline';
                     } else if (route.name === 'Scanner') {
                         iconName = focused ? 'qr-code' : 'qr-code-outline';
                     } else if (route.name === 'Notifications') {
@@ -42,12 +42,13 @@ const MainTabNavigator = () => {
                 tabBarActiveTintColor: '#6D9EBE',
                 tabBarInactiveTintColor: 'gray',
                 tabBarStyle: {
-                    borderTopWidth: 0,
-                    elevation: 10,
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
+                    borderTopWidth: 1,
+                    borderTopColor: '#E0E0E0',
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: -2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 2,
+                    elevation: 5,
                 },
                 headerStyle: {
                     backgroundColor: 'white',
@@ -107,6 +108,19 @@ const AppNavigator = () => {
 
     // Verificar si el usuario está autenticado al cargar la aplicación
     useEffect(() => {
+        // Intentar cargar el token guardado primero
+        const checkStoredToken = async () => {
+            try {
+                const token = await AsyncStorage.getItem('userToken');
+                if (token) {
+                    setUserToken(token);
+                }
+            } catch (e) {
+                console.error("Error al verificar token guardado:", e);
+            }
+        };
+
+        // Después verificar el estado de autenticación con Firebase
         const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
             try {
                 if (user) {
@@ -126,13 +140,16 @@ const AppNavigator = () => {
             }
         });
 
+        // Ejecutar la comprobación del token guardado
+        checkStoredToken();
+
         // Limpiar suscripción al desmontar
         return unsubscribeAuth;
     }, []);
 
-    // Mostrar pantalla de carga mientras se verifica la autenticación
+    // No mostrar nada mientras se verifica la autenticación
     if (isLoading) {
-        return null; // Aquí podríamos mostrar un splash screen en el futuro
+        return null;
     }
 
     return (
@@ -179,4 +196,4 @@ const AppNavigator = () => {
     );
 };
 
-export default AppNavigator; 
+export default AppNavigator;

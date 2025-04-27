@@ -1,3 +1,25 @@
+/**
+ * Página del Scanner de Productos de Ordinem
+ * 
+ * Este componente proporciona un escáner de códigos de barras para consultar información
+ * nutricional de productos desde la base de datos de OpenFoodFacts. Sus principales
+ * funcionalidades son:
+ * 
+ * - Escanear códigos de barras EAN-8, EAN-13, UPC-A y UPC-E
+ * - Buscar automáticamente información del producto en OpenFoodFacts
+ * - Mostrar información nutricional detallada (Nutri-Score, Eco-Score)
+ * - Visualizar ingredientes y valores nutricionales por 100g
+ * - Permitir escanear múltiples productos de forma consecutiva
+ * 
+ * IMPORTANTE: A diferencia de la página principal de productos, este scanner NO añade
+ * productos al inventario del armario Ordinem. Funciona como un escáner informativo,
+ * similar a aplicaciones como Yuka, diseñado para consultar información de productos
+ * mientras se está en el supermercado antes de comprarlos.
+ * 
+ * Los productos en el inventario de los armarios son detectados y añadidos automáticamente
+ * por los dispositivos Ordinem mediante sus propios sensores, no mediante este scanner.
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -7,12 +29,18 @@ import {
   Alert,
   ActivityIndicator,
   AppState,
+  Modal,
+  TextInput,
+  ScrollView,
 } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ProductDetailsModal } from '@/components/ProductDetailsModal';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { getDatabase, ref, set } from 'firebase/database';
+import { getLinkedDevices } from '@/services/firebase';
+import { useProducts } from '@/hooks/useProducts';
 
 interface ProductData {
   product: {
@@ -51,6 +79,7 @@ export default function ProductScanner() {
   const [modalVisible, setModalVisible] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ProductData | null>(null);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
+  
   const router = useRouter();
   const navigation = useNavigation();
 
@@ -85,22 +114,52 @@ export default function ProductScanner() {
     return unsubscribe;
   }, [navigation]);
 
+  /**
+   * IMPORTANTE: Este scanner de productos es solo para consultar información nutricional
+   * (similar a Yuka) cuando estás en el supermercado. NO añade productos al inventario.
+   * Los productos son detectados y añadidos automáticamente por el armario Ordinem.
+   */
+
+  // Función para mostrar detalles del producto cuando se escanea
+  // No guarda el producto en Firebase, solo muestra su información nutricional
+  const showProductDetails = async (barcode: string, productData: any) => {
+    try {
+      // Actualizar el estado del producto escaneado
+      setScannedProduct({
+        product: productData,
+        status: 1
+      });
+      
+      // Mostrar modal con información nutricional
+      setModalVisible(true);
+      return true;
+    } catch (error) {
+      console.error('Error al mostrar detalles del producto:', error);
+      Alert.alert(
+        'Error',
+        'No se pudo mostrar la información del producto. Por favor, inténtalo de nuevo.',
+        [{ text: 'OK' }]
+      );
+      return false;
+    }
+  };
+
   const updateScannedProduct = async (product: any) => {
     // Primero cerramos el modal actual si está abierto
     if (modalVisible) {
       setModalVisible(false);
     }
     
-    // Actualizamos el producto y abrimos el modal con la nueva información
+    // Actualizamos el producto y abrimos el modal con la información nutricional
     setScannedProduct({
       product: product,
       status: 1
     });
     
-    // Pequeño timeout para asegurar que el modal anterior se haya cerrado
+    // Mostrar el modal con la información del producto
     setTimeout(() => {
       setModalVisible(true);
-    }, 100);
+    }, 300);
   };
 
   const fetchProductInfo = async (barcode: string) => {
@@ -157,6 +216,13 @@ export default function ProductScanner() {
 
   const handleClose = () => {
     router.back();
+  };
+
+// Actualizado para el flujo informativo (solo consulta)
+  const handleScanAgain = () => {
+    setScanned(false);
+    setScannedProduct(null);
+    setScannedBarcode('');
   };
 
   if (hasPermission === null) {
@@ -235,7 +301,7 @@ export default function ProductScanner() {
         {scanned && !loading && (
           <TouchableOpacity
             style={styles.rescanButton}
-            onPress={() => setScanned(false)}
+            onPress={handleScanAgain}
           >
             <Text style={styles.rescanButtonText}>Escanear otro</Text>
           </TouchableOpacity>
@@ -378,5 +444,113 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     marginTop: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  productName: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    marginBottom: 5,
+  },
+  dateInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    fontSize: 16,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    marginHorizontal: 5,
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#ccc',
+  },
+  saveButton: {
+    backgroundColor: '#6D9EBE',
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  deviceSelectorContent: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+  },
+  deviceList: {
+    maxHeight: '70%',
+  },
+  deviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e1e8',
+  },
+  deviceItemInfo: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  deviceItemName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  deviceItemCount: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  cancelDeviceButton: {
+    marginTop: 15,
+    backgroundColor: '#f2f2f7',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
 });

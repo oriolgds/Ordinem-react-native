@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/hooks/useAuth';
 
 // Registrar el redireccionamiento para autenticación web
 WebBrowser.maybeCompleteAuthSession();
@@ -31,13 +32,20 @@ const Register = () => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const router = useRouter();
+    const { authenticated, loading: authLoading } = useAuth();
 
-    // Configuración de autenticación con Google
+    // Configuración de autenticación con Google - MOVER AQUÍ ARRIBA, antes de cualquier return
     const [request, response, promptAsync] = Google.useAuthRequest({
         expoClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
         androidClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
         webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
     });
+
+    useEffect(() => {
+        if (!authLoading && authenticated) {
+            router.replace('/(tabs)/products');
+        }
+    }, [authenticated, authLoading]);
 
     // Manejar la respuesta de Google
     React.useEffect(() => {
@@ -46,6 +54,15 @@ const Register = () => {
             handleGoogleSignIn(id_token);
         }
     }, [response]);
+
+    // Si está cargando la autenticación, mostrar loading
+    if (authLoading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#6D9EBE" />
+            </View>
+        );
+    }
 
     // Validar formulario
     const validateForm = () => {
@@ -401,4 +418,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Register; 
+export default Register;

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Camera } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
-import { validatePairingQR } from '../utils/crypto';
 import { pairDevice } from '../services/firebase';
 import { getAuth } from 'firebase/auth';
 
@@ -13,7 +12,6 @@ const QRScanner = () => {
     const navigation = useNavigation();
     const auth = getAuth();
 
-    // Solicitar permiso de cámara al montar el componente
     useEffect(() => {
         const getCameraPermissions = async () => {
             const { status } = await Camera.requestCameraPermissionsAsync();
@@ -23,64 +21,34 @@ const QRScanner = () => {
         getCameraPermissions();
     }, []);
 
-    // Manejar el escaneo de códigos QR
-    const handleBarCodeScanned = async ({ type, data }) => {
+    const handleBarCodeScanned = async ({ data }) => {
+        if (scanned || loading) return;
+
         try {
             setScanned(true);
             setLoading(true);
 
-            // Validar que el código QR sea válido para emparejamiento
-            const decodedData = validatePairingQR(data);
+            // El QR contiene directamente el ID del dispositivo
+            await pairDevice(auth.currentUser.uid, data);
 
-            if (!decodedData) {
-                Alert.alert(
-                    'Código inválido',
-                    'El código QR no es válido o ha expirado.',
-                    [{ text: 'OK', onPress: () => setScanned(false) }]
-                );
-                setLoading(false);
-                return;
-            }
-
-            // Obtener el usuario actual
-            const currentUser = auth.currentUser;
-            if (!currentUser) {
-                Alert.alert(
-                    'Error de autenticación',
-                    'Debes iniciar sesión para emparejar dispositivos.',
-                    [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
-                );
-                setLoading(false);
-                return;
-            }
-
-            // Emparejar el dispositivo con el usuario
-            await pairDevice(currentUser.uid, decodedData.deviceId);
-
-            // Mostrar mensaje de éxito
             Alert.alert(
-                'Dispositivo emparejado',
-                'El dispositivo ha sido emparejado correctamente.',
-                [{ text: 'OK', onPress: () => navigation.navigate('Home') }]
+                'Éxito',
+                'Dispositivo vinculado correctamente',
+                [{ text: 'OK', onPress: () => navigation.goBack() }]
             );
-
         } catch (error) {
-            console.error('Error al emparejar dispositivo:', error);
-            Alert.alert(
-                'Error',
-                'Ocurrió un error al emparejar el dispositivo.',
-                [{ text: 'OK', onPress: () => setScanned(false) }]
-            );
+            console.error('Error al vincular dispositivo:', error);
+            Alert.alert('Error', 'No se pudo vincular el dispositivo');
+            setScanned(false);
         } finally {
             setLoading(false);
         }
     };
 
-    // Renderizar mensaje según el estado de permisos
     if (hasPermission === null) {
         return (
             <View style={styles.container}>
-                <Text style={styles.text}>Solicitando permisos de cámara...</Text>
+                <Text style={styles.text}>Solicitando permiso de cámara...</Text>
             </View>
         );
     }
@@ -88,15 +56,12 @@ const QRScanner = () => {
     if (hasPermission === false) {
         return (
             <View style={styles.container}>
-                <Text style={styles.text}>No hay acceso a la cámara</Text>
-                <Text style={styles.description}>
-                    Para escanear códigos QR, debes permitir el acceso a la cámara.
-                </Text>
+                <Text style={styles.text}>Sin acceso a la cámara</Text>
                 <TouchableOpacity
                     style={styles.button}
-                    onPress={() => Camera.requestCameraPermissionsAsync()}
+                    onPress={() => navigation.goBack()}
                 >
-                    <Text style={styles.buttonText}>Solicitar permisos</Text>
+                    <Text style={styles.buttonText}>Volver</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -106,33 +71,21 @@ const QRScanner = () => {
         <View style={styles.container}>
             <Camera
                 style={styles.scanner}
-                onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
-                barCodeScannerSettings={{
-                    barCodeTypes: ['qr'],
-                }}
-            />
-
-            <View style={styles.overlay}>
-                <View style={styles.scannerFrame} />
-                <Text style={styles.instructions}>
-                    Escanea el código QR de tu dispositivo Ordinem para emparejarlo.
-                </Text>
-            </View>
-
-            {scanned && !loading && (
-                <TouchableOpacity
-                    style={styles.button}
-                    onPress={() => setScanned(false)}
-                >
-                    <Text style={styles.buttonText}>Escanear otro código</Text>
-                </TouchableOpacity>
-            )}
-
-            {loading && (
-                <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>Emparejando dispositivo...</Text>
+                onBarCodeScanned={handleBarCodeScanned}
+                ratio="16:9"
+            >
+                <View style={styles.overlay}>
+                    <View style={styles.scannerFrame} />
+                    <Text style={styles.instructions}>
+                        Escanea el código QR del dispositivo para vincularlo
+                    </Text>
+                    {loading && (
+                        <View style={styles.loadingContainer}>
+                            <Text style={styles.loadingText}>Vinculando dispositivo...</Text>
+                        </View>
+                    )}
                 </View>
-            )}
+            </Camera>
         </View>
     );
 };
@@ -173,13 +126,6 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 20,
     },
-    description: {
-        color: 'white',
-        fontSize: 14,
-        textAlign: 'center',
-        marginHorizontal: 40,
-        marginBottom: 30,
-    },
     button: {
         backgroundColor: '#6D9EBE',
         paddingHorizontal: 20,
@@ -206,4 +152,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default QRScanner; 
+export default QRScanner;

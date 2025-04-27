@@ -1,0 +1,113 @@
+{
+  "ordinem": {
+    "devices": {
+      "faslinux_11250": {
+        "last_update": "2025-04-14T11:25:51.422146",
+        "products": {
+          "8410090441270": {
+            "expiry_date": "31/12/2028",
+            "last_detected": "2025-04-14T11:25:51.422146"
+          },
+          "8470001809698": {
+            "expiry_date": "01/01/2026",
+            "last_detected": "2025-04-14T11:25:51.422146"
+          }
+        }
+      },
+      "faslinux_25216": {
+        "hostname": "faslinux",
+        "last_update": "2025-04-13T13:57:21.990644",
+        "products": {
+          "7622300270469": {
+            "brand": "Milka",
+            "category": "Dulces y snacks",
+            "expiry_date": "30/09/2025",
+            "image_url": "https://images.openfoodfacts.org/images/products/762/230/027/0469/front_en.38.400.jpg",
+            "last_detected": "2025-04-13T13:57:21.990644",
+            "name": "Choco Biscuits"
+          },
+          "8410090441270": {
+            "brand": "Calvo",
+            "category": "Conservas",
+            "expiry_date": "31/12/2028",
+            "image_url": "https://images.openfoodfacts.org/images/products/841/009/044/1270/front_es.20.400.jpg",
+            "last_detected": "2025-04-13T13:57:21.990644",
+            "name": "Sardinas en aceite de oliva"
+          },
+          "8410376047578": {
+            "brand": "Gullón",
+            "category": "Panadería y bollería",
+            "expiry_date": "01/12/2024",
+            "image_url": "https://images.openfoodfacts.org/images/products/841/037/604/7578/front_en.59.400.jpg",
+            "last_detected": "2025-04-13T13:57:21.990644",
+            "name": "Digestive Avena Naranja"
+          },
+          "8470001809698": {
+            "brand": "Aquilea",
+            "category": "Otros",
+            "expiry_date": "01/01/2026",
+            "image_url": "https://images.openfoodfacts.org/images/products/847/000/180/9698/front_es.3.400.jpg",
+            "last_detected": "2025-04-13T13:57:21.990644",
+            "name": "Mucus"
+          }
+        }
+      },
+      "faslinux_7213": {
+        "last_update": "2025-04-14T11:20:58.050895",
+        "products": {
+          "8410090441270": {
+            "expiry_date": "31/12/2028",
+            "last_detected": "2025-04-14T11:20:58.050895"
+          },
+          "8470001809698": {
+            "expiry_date": "01/01/2026",
+            "last_detected": "2025-04-14T11:20:58.050895"
+          }
+        }
+      }
+    }
+  },
+  "users": {
+    "3pbl0NGsX6TT58ye9UugZRAcewo2": {
+      "email": "",
+      "isAnonymous": true,
+      "name": "Usuario Anónimo",
+      "preferences": {
+        "notification_threshold": 3,
+        "notifications_enabled": true,
+        "theme": "light"
+      }
+    },
+    "8QAUamFKHPbk5ijTo0ZIBICZy2F3": {
+      "email": "",
+      "isAnonymous": true,
+      "name": "Usuario Anónimo",
+      "preferences": {
+        "notification_threshold": 3,
+        "notifications_enabled": true,
+        "theme": "light"
+      }
+    },
+    "LOOTqQsElNRVc5HYkvJxljjkIcs2": {
+      "email": "belenic7@gmail.com",
+      "name": "Oriol",
+      "preferences": {
+        "notification_threshold": 3,
+        "notifications_enabled": true,
+        "theme": "light"
+      }
+    },
+    "WWHjQou08ZamLqWVS9fzZp2eVfJ3": {
+      "email": "ordinem@europe.com",
+      "name": "Ordinem",
+      "preferences": {
+        "notification_threshold": 3,
+        "notifications_enabled": true,
+        "notifyExpired": true,
+        "notifyExpiringSoon": true,
+        "notifyNewDevice": true,
+        "theme": "light"
+      }
+    }
+  }
+}

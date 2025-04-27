@@ -34,12 +34,12 @@ export function FilterModal({ visible, onClose, options, onApplyFilters }: Filte
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={onClose}
     >
       <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { transform: [{translateY: 0}] }]}>
           <View style={styles.header}>
             <Text style={styles.title}>Filtros</Text>
             <TouchableOpacity onPress={onClose}>
@@ -236,4 +236,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-}); 
+});

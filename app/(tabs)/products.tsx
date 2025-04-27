@@ -1,4 +1,23 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * Página principal de productos de Ordinem
+ * 
+ * Este componente es la pantalla principal de la aplicación donde se muestran todos los productos
+ * registrados en los armarios del usuario. Sus principales funcionalidades son:
+ * 
+ * - Mostrar una lista de productos de todos los armarios vinculados
+ * - Obtener y mostrar información detallada de OpenFoodFacts para cada producto (imágenes, marcas, etc.)
+ * - Permitir filtrar productos por categoría
+ * - Buscar productos por nombre o código de barras
+ * - Seleccionar entre diferentes armarios vinculados
+ * - Visualizar el estado de caducidad de los productos (caducados, próximos a caducar, etc.)
+ * - Acceder a la información nutricional detallada al pulsar en un producto
+ * 
+ * La página se comunica con la API de OpenFoodFacts para enriquecer los datos básicos de los productos
+ * almacenados en la base de datos de Firebase. Al obtener datos nutricionales completos, imágenes,
+ * y clasificaciones (Nutri-Score, Eco-Score), ofrece una experiencia más informativa para el usuario.
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -8,61 +27,18 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { getProducts } from '@/services/firebase';
 import { ProductDetailsModal } from '@/components/ProductDetailsModal';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  location: string;
-  expiryDate: string;
-  barcode: string;
-}
-
-interface ProductCardProps {
-  product: Product;
-  onPress: (product: Product) => void;
-}
+import { useProducts, Product, Device } from '@/hooks/useProducts';
+import { ProductCard } from '@/components/ProductCard';
 
 interface SearchBarProps {
   value: string;
   onChangeText: (text: string) => void;
 }
-
-// Componente de tarjeta de producto
-const ProductCard = ({ product, onPress }: ProductCardProps) => {
-  const isExpiring = new Date(product.expiryDate) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const isExpired = new Date(product.expiryDate) < new Date();
-  
-  return (
-    <TouchableOpacity 
-      style={[
-        styles.card, 
-        isExpired ? styles.cardExpired : isExpiring ? styles.cardExpiring : null
-      ]} 
-      onPress={() => onPress(product)}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productCategory}>{product.category}</Text>
-      </View>
-      
-      <View style={styles.cardBody}>
-        <Text style={styles.productLocation}>Ubicación: {product.location}</Text>
-        <Text style={[
-          styles.expiryDate,
-          isExpired ? styles.textExpired : isExpiring ? styles.textExpiring : null
-        ]}>
-          Expira: {new Date(product.expiryDate).toLocaleDateString('es-ES')}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
 
 // Componente de barra de búsqueda
 const SearchBar = ({ value, onChangeText }: SearchBarProps) => {
@@ -79,81 +55,206 @@ const SearchBar = ({ value, onChangeText }: SearchBarProps) => {
   );
 };
 
+// Componente para el selector de dispositivos
+interface DevicePickerProps {
+  devices: Device[];
+  selectedDevice: string | null;
+  onSelectDevice: (deviceId: string) => void;
+}
+
+const DevicePicker = ({ devices, selectedDevice, onSelectDevice }: DevicePickerProps) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const router = useRouter();
+
+  // Si no hay dispositivos, no mostramos nada
+  if (devices.length === 0) {
+    return null;
+  }
+  
+  const currentDevice = devices.find(d => d.id === selectedDevice);
+
+  return (
+    <View style={styles.devicePickerContainer}>
+      <TouchableOpacity 
+        style={styles.devicePickerButton}
+        onPress={() => setModalVisible(true)}
+      >
+        <Ionicons name="cube-outline" size={20} color="#6D9EBE" />
+        <Text style={styles.devicePickerText}>
+          {currentDevice ? `Armario: ${currentDevice.id}` : "Seleccionar armario"}
+        </Text>
+        <Ionicons name="chevron-down" size={16} color="#999" />
+      </TouchableOpacity>
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <View style={[styles.modalContent, { transform: [{translateY: 0}] }]}>
+            <Text style={styles.modalTitle}>Seleccionar armario</Text>
+            {devices.map(device => (
+              <TouchableOpacity
+                key={device.id}
+                style={[
+                  styles.deviceOption,
+                  selectedDevice === device.id && styles.deviceOptionSelected
+                ]}
+                onPress={() => {
+                  onSelectDevice(device.id);
+                  setModalVisible(false);
+                }}
+              >
+                <Ionicons 
+                  name={selectedDevice === device.id ? "cube" : "cube-outline"} 
+                  size={24} 
+                  color={selectedDevice === device.id ? "#6D9EBE" : "#666"} 
+                />
+                <View style={styles.deviceInfo}>
+                  <Text style={styles.deviceName}>Armario {device.id}</Text>
+                  <Text style={styles.deviceStats}>
+                    {device.product_count} productos • Actualizado {new Date(device.last_update).toLocaleDateString('es-ES')}
+                  </Text>
+                </View>
+                {selectedDevice === device.id && (
+                  <Ionicons name="checkmark-circle" size={24} color="#6D9EBE" />
+                )}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity 
+              style={styles.addDeviceButton}
+              onPress={() => {
+                setModalVisible(false);
+                router.push('/pair-device');
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={24} color="#6D9EBE" />
+              <Text style={styles.addDeviceText}>Añadir nuevo armario</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+};
+
 export default function ProductsScreen() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const {
+    products,
+    categories,
+    devices,
+    selectedDevice,
+    setSelectedDevice,
+    loading,
+    refreshing,
+    onRefresh,
+    filterProducts,
+    devicesFetched
+  } = useProducts();
+
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productDetailsFromOFF, setProductDetailsFromOFF] = useState<any>(null);
+  const [loadingProductDetails, setLoadingProductDetails] = useState(false);
   const router = useRouter();
 
-  // Cargar productos desde Firebase
-  const loadProducts = async () => {
+  // Estado para almacenar los datos de OpenFoodFacts de todos los productos
+  const [productsOFFData, setProductsOFFData] = useState<{[barcode: string]: any}>({});
+  
+  // Función para obtener datos de OpenFoodFacts para un código de barras
+  const fetchProductFromOpenFoodFacts = useCallback(async (barcode: string) => {
     try {
-      const productsData = await getProducts();
-      setProducts(productsData);
-      filterProducts(productsData, searchQuery, categoryFilter);
-      setLoading(false);
+      setLoadingProductDetails(true);
+      const response = await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
+      );
+      const data = await response.json();
+      
+      if (data.status === 1) {
+        return data.product;
+      } 
+      return null;
     } catch (error) {
-      console.error('Error al cargar productos:', error);
-      setLoading(false);
+      console.error('Error al obtener información del producto:', error);
+      return null;
+    } finally {
+      setLoadingProductDetails(false);
     }
-  };
-
-  // Filtrar productos
-  const filterProducts = (productsData: Product[], query: string, category: string) => {
-    let filtered = productsData;
-    
-    if (query) {
-      filtered = filtered.filter(product => 
-        product.name.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-    
-    if (category) {
-      filtered = filtered.filter(product => 
-        product.category === category
-      );
-    }
-    
-    setFilteredProducts(filtered);
-  };
-
-  // Efecto para cargar productos al inicio
-  useEffect(() => {
-    loadProducts();
   }, []);
 
-  // Efecto para filtrar productos cuando cambian los filtros
+  // Función para cargar datos de OpenFoodFacts para todos los productos
+  const fetchAllProductsData = useCallback(async (productsList: Product[]) => {
+    const productsWithBarcode = productsList.filter(p => p.barcode);
+    
+    // Crear un conjunto para evitar duplicados
+    const uniqueBarcodes = new Set(productsWithBarcode.map(p => p.barcode));
+    const barcodeData: {[barcode: string]: any} = {...productsOFFData};
+    
+    // Procesar en lotes para no saturar la API
+    const batchSize = 3;
+    const barcodesToProcess = Array.from(uniqueBarcodes).filter(barcode => 
+      barcode && !productsOFFData[barcode as string]
+    );
+    
+    for (let i = 0; i < barcodesToProcess.length; i += batchSize) {
+      const batch = barcodesToProcess.slice(i, i + batchSize);
+      const promises = batch.map(async (barcode) => {
+        if (barcode) {
+          const data = await fetchProductFromOpenFoodFacts(barcode as string);
+          if (data) {
+            barcodeData[barcode as string] = data;
+          }
+        }
+      });
+      
+      await Promise.all(promises);
+    }
+    
+    setProductsOFFData(barcodeData);
+  }, [fetchProductFromOpenFoodFacts]); // Quitamos productsOFFData para evitar el bucle infinito
+  
+  // Cargar datos de OpenFoodFacts cuando cambian los productos
   useEffect(() => {
-    filterProducts(products, searchQuery, categoryFilter);
-  }, [searchQuery, categoryFilter]);
-
-  // Manejar refresco de lista
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadProducts();
-    setRefreshing(false);
-  };
+    if (products.length > 0) {
+      fetchAllProductsData(products);
+    }
+  }, [products, fetchAllProductsData]);
 
   // Navegar a detalle del producto
   const handleProductPress = (product: Product) => {
     setSelectedProduct(product);
+    
+    if (product.barcode && productsOFFData[product.barcode]) {
+      setProductDetailsFromOFF(productsOFFData[product.barcode]);
+    } else {
+      setProductDetailsFromOFF(null);
+    }
+    
     setModalVisible(true);
   };
+
+  // Efecto para filtrar productos cuando cambian los filtros o los productos
+  useEffect(() => {
+    const filtered = filterProducts(searchQuery, categoryFilter, selectedDevice || null);
+    setFilteredProducts(filtered);
+  }, [searchQuery, categoryFilter, selectedDevice, products, filterProducts]);
 
   // Cambiar filtro de categoría
   const handleCategoryFilter = (category: string) => {
     setCategoryFilter(prevCategory => prevCategory === category ? '' : category);
   };
 
-  // Categorías disponibles
-  const categories = ['Alimentos', 'Bebidas', 'Limpieza', 'Otros'];
-
-  if (loading && !refreshing) {
+  // Pantalla de carga mientras se obtienen los dispositivos
+  if (loading && !refreshing && !devicesFetched) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6D9EBE" />
@@ -161,6 +262,58 @@ export default function ProductsScreen() {
     );
   }
 
+  // Pantalla de bienvenida cuando no hay armarios vinculados
+  if (devices.length === 0 && devicesFetched) {
+    return (
+      <View style={styles.welcomeContainer}>
+        <View style={styles.welcomeHeader}>
+          <Text style={styles.welcomeTitle}>Bienvenido a Ordinem</Text>
+          <Text style={styles.welcomeSubtitle}>Organiza tu despensa de manera inteligente</Text>
+        </View>
+        
+        <View style={styles.welcomeContent}>
+          <Ionicons name="cube" size={100} color="#6D9EBE" style={styles.welcomeIcon} />
+          
+          <Text style={styles.welcomeMessage}>
+            Para comenzar, necesitas vincular un armario inteligente Ordinem
+          </Text>
+          
+          <View style={styles.stepsContainer}>
+            <View style={styles.step}>
+              <View style={styles.stepNumberContainer}>
+                <Text style={styles.stepNumber}>1</Text>
+              </View>
+              <Text style={styles.stepText}>Configura tu armario Ordinem</Text>
+            </View>
+            
+            <View style={styles.step}>
+              <View style={styles.stepNumberContainer}>
+                <Text style={styles.stepNumber}>2</Text>
+              </View>
+              <Text style={styles.stepText}>Vincula el armario escaneando su código QR</Text>
+            </View>
+            
+            <View style={styles.step}>
+              <View style={styles.stepNumberContainer}>
+                <Text style={styles.stepNumber}>3</Text>
+              </View>
+              <Text style={styles.stepText}>¡Empieza a organizar y monitorear tus productos!</Text>
+            </View>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.welcomeButton}
+            onPress={() => router.push('/pair-device')}
+          >
+            <Ionicons name="qr-code-outline" size={24} color="white" style={styles.welcomeButtonIcon} />
+            <Text style={styles.welcomeButtonText}>Vincular un armario</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Pantalla normal de productos
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -168,45 +321,91 @@ export default function ProductsScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        
+        <DevicePicker 
+          devices={devices}
+          selectedDevice={selectedDevice}
+          onSelectDevice={setSelectedDevice}
+        />
       </View>
 
-      <View style={styles.categoryFilters}>
-        {categories.map(category => (
-          <TouchableOpacity 
-            key={category}
-            style={[
-              styles.categoryButton,
-              categoryFilter === category && styles.categoryButtonActive
-            ]}
-            onPress={() => handleCategoryFilter(category)}
-          >
-            <Text style={[
-              styles.categoryButtonText,
-              categoryFilter === category && styles.categoryButtonTextActive
-            ]}>
-              {category}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {categories.length > 0 && (
+        <View style={styles.categoryFilters}>
+          {categories.map(category => (
+            category ? (
+              <TouchableOpacity 
+                key={category}
+                style={[
+                  styles.categoryButton,
+                  categoryFilter === category && styles.categoryButtonActive
+                ]}
+                onPress={() => handleCategoryFilter(category)}
+              >
+                <Text style={[
+                  styles.categoryButtonText,
+                  categoryFilter === category && styles.categoryButtonTextActive
+                ]}>
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ) : null
+          ))}
+        </View>
+      )}
 
       <FlatList
         data={filteredProducts}
-        renderItem={({ item }) => (
-          <ProductCard 
-            product={item} 
-            onPress={handleProductPress}
-          />
-        )}
+        renderItem={({ item }) => {
+          // Enriquecer el producto con datos de OpenFoodFacts si están disponibles
+          const enrichedProduct = { ...item };
+          
+          // Si hay datos disponibles de OpenFoodFacts, actualizar los atributos del producto
+          if (item.barcode && productsOFFData[item.barcode]) {
+            const offData = productsOFFData[item.barcode];
+            
+            // Usar el nombre de OpenFoodFacts si está disponible
+            if (offData.product_name) {
+              enrichedProduct.name = offData.product_name;
+            }
+            
+            // Usar la imagen de OpenFoodFacts si está disponible
+            if (offData.image_url) {
+              enrichedProduct.imageUrl = offData.image_url;
+            }
+            
+            // Añadir marca si está disponible
+            if (offData.brands && !enrichedProduct.brand) {
+              enrichedProduct.brand = offData.brands;
+            }
+          }
+          
+          return (
+            <ProductCard 
+              product={enrichedProduct}
+              onPress={handleProductPress}
+            />
+          );
+        }}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={handleRefresh}
+            onRefresh={onRefresh}
             colors={['#6D9EBE']}
           />
         }
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="cube-outline" size={80} color="#E1E1E8" />
+            <Text style={styles.emptyTitle}>
+              No hay productos en este armario
+            </Text>
+            <Text style={styles.emptyDescription}>
+              Los productos aparecerán aquí cuando sean detectados
+            </Text>
+          </View>
+        )}
       />
 
       <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/ProductScanner')}>
@@ -216,31 +415,31 @@ export default function ProductsScreen() {
       <ProductDetailsModal 
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        productData={selectedProduct ? {
+        productData={productDetailsFromOFF ? {
           product: {
-            product_name: selectedProduct.name,
-            brands: '',
-            image_url: '',
-            nutriscore_grade: undefined,
-            ecoscore_grade: undefined,
-            ingredients_text: '',
+            product_name: productDetailsFromOFF.product_name || selectedProduct?.name,
+            brands: productDetailsFromOFF.brands || '',
+            image_url: productDetailsFromOFF.image_url || selectedProduct?.imageUrl || '',
+            nutriscore_grade: productDetailsFromOFF.nutriscore_grade || undefined,
+            ecoscore_grade: productDetailsFromOFF.ecoscore_grade || undefined,
+            ingredients_text: productDetailsFromOFF.ingredients_text || '',
             nutriments: {
-              energy_100g: 0,
-              proteins_100g: 0,
-              carbohydrates_100g: 0,
-              fat_100g: 0,
-              fiber_100g: 0,
-              salt_100g: 0,
-              sugars_100g: 0,
-              saturated_fat_100g: 0,
-              sodium_100g: 0,
-              calcium_100g: 0,
-              iron_100g: 0,
-              trans_fat_100g: 0,
-              cholesterol_100g: 0,
-              vitamin_a_100g: 0,
-              vitamin_c_100g: 0,
-              vitamin_d_100g: 0
+              energy_100g: productDetailsFromOFF.nutriments?.energy_100g || 0,
+              proteins_100g: productDetailsFromOFF.nutriments?.proteins_100g || 0,
+              carbohydrates_100g: productDetailsFromOFF.nutriments?.carbohydrates_100g || 0,
+              fat_100g: productDetailsFromOFF.nutriments?.fat_100g || 0,
+              fiber_100g: productDetailsFromOFF.nutriments?.fiber_100g || 0,
+              salt_100g: productDetailsFromOFF.nutriments?.salt_100g || 0,
+              sugars_100g: productDetailsFromOFF.nutriments?.sugars_100g || 0,
+              saturated_fat_100g: productDetailsFromOFF.nutriments?.saturated_fat_100g || 0,
+              sodium_100g: productDetailsFromOFF.nutriments?.sodium_100g || 0,
+              calcium_100g: productDetailsFromOFF.nutriments?.calcium_100g || 0,
+              iron_100g: productDetailsFromOFF.nutriments?.iron_100g || 0,
+              trans_fat_100g: productDetailsFromOFF.nutriments?.trans_fat_100g || 0,
+              cholesterol_100g: productDetailsFromOFF.nutriments?.cholesterol_100g || 0,
+              vitamin_a_100g: productDetailsFromOFF.nutriments?.vitamin_a_100g || 0,
+              vitamin_c_100g: productDetailsFromOFF.nutriments?.vitamin_c_100g || 0,
+              vitamin_d_100g: productDetailsFromOFF.nutriments?.vitamin_d_100g || 0
             }
           },
           status: 1
@@ -284,11 +483,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#E1E1E8',
+    flexWrap: 'wrap',
   },
   categoryButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginRight: 8,
+    marginBottom: 8,
     borderRadius: 20,
     backgroundColor: '#F2F2F7',
   },
@@ -304,68 +505,12 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+    paddingBottom: 80, // Espacio para el FAB button
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardExpiring: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#F9A826',
-  },
-  cardExpired: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF5252',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  cardBody: {
-    marginTop: 8,
-  },
-  productName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F1F3C',
-  },
-  productCategory: {
-    fontSize: 14,
-    color: '#6D9EBE',
-    backgroundColor: '#F2F2F7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  productLocation: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  expiryDate: {
-    fontSize: 14,
-    color: '#666',
-  },
-  textExpiring: {
-    color: '#F9A826',
-    fontWeight: 'bold',
-  },
-  textExpired: {
-    color: '#FF5252',
-    fontWeight: 'bold',
   },
   fabButton: {
     position: 'absolute',
@@ -382,5 +527,163 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  devicePickerContainer: {
+    marginTop: 8,
+  },
+  devicePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    padding: 10,
+  },
+  devicePickerText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#333',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  deviceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+  },
+  deviceOptionSelected: {
+    backgroundColor: '#E1E1E8',
+  },
+  deviceInfo: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  deviceName: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  deviceStats: {
+    fontSize: 14,
+    color: '#666',
+  },
+  addDeviceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  addDeviceText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#6D9EBE',
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    marginTop: 40,
+  },
+  emptyTitle: {
+    marginTop: 12,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#999',
+  },
+  emptyDescription: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  welcomeContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F2F2F7',
+  },
+  welcomeHeader: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F1F3C',
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: '#666',
+  },
+  welcomeContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  welcomeIcon: {
+    marginBottom: 20,
+  },
+  welcomeMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#333',
+  },
+  stepsContainer: {
+    paddingHorizontal: 20,
+    paddingRight: 40,
+    marginBottom: 20,
+  },
+  step: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  stepNumberContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#6D9EBE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  stepNumber: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  stepText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  welcomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6D9EBE',
+    borderRadius: 10,
+    padding: 10,
+  },
+  welcomeButtonIcon: {
+    marginRight: 10,
+  },
+  welcomeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

@@ -18,12 +18,13 @@ import { signInWithEmail, signInWithGoogle, signInAnonymously, resetPassword } f
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import { useAuth } from '@/hooks/useAuth';
 
 // Función para detectar si estamos en Expo Go
 const isExpoGo = Constants.appOwnership === 'expo';
 
 // Importación condicional de Google SignIn
-let GoogleSignin;
+let Googlesignin;
 let GoogleSigninButton;
 let statusCodes;
 
@@ -31,7 +32,7 @@ let statusCodes;
 if (!isExpoGo) {
     try {
         const GoogleSignInModule = require('@react-native-google-signin/google-signin');
-        GoogleSignin = GoogleSignInModule.GoogleSignin;
+        Googlesignin = GoogleSignInModule.GoogleSignin;
         GoogleSigninButton = GoogleSignInModule.GoogleSigninButton;
         statusCodes = GoogleSignInModule.statusCodes;
     } catch (error) {
@@ -45,16 +46,35 @@ const Login = () => {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     const router = useRouter();
+    const { authenticated, loading: authLoading } = useAuth();
 
-    // Configuración de Google Sign-In si está disponible
+    // Efecto para redirección - Modificado para evitar redirecciones innecesarias
     useEffect(() => {
-        if (GoogleSignin && !isExpoGo) {
-            GoogleSignin.configure({
+        // La pantalla index.tsx ya se encarga de la redirección inicial
+        // Solo redireccionar si se produce un cambio de estado DENTRO de esta pantalla
+        // Esto evita el parpadeo al iniciar la app
+        if (!authLoading && authenticated && router.canGoBack()) {
+            router.replace('/(tabs)/products');
+        }
+    }, [authenticated, authLoading, router]);
+
+    // Efecto para Google Sign-In
+    useEffect(() => {
+        if (!isExpoGo && Googlesignin) {
+            Googlesignin.configure({
                 webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
-                // No se necesitan más parámetros para Android
             });
         }
     }, []);
+
+    // Si está cargando la autenticación, mostrar loading
+    if (authLoading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#6D9EBE" />
+            </View>
+        );
+    }
 
     // Validar formulario
     const validateForm = () => {
@@ -123,9 +143,9 @@ const Login = () => {
             }
 
             // Si Google SignIn está disponible, lo usamos
-            if (GoogleSignin) {
-                await GoogleSignin.hasPlayServices();
-                const userInfo = await GoogleSignin.signIn();
+            if (Googlesignin) {
+                await Googlesignin.hasPlayServices();
+                const userInfo = await Googlesignin.signIn();
 
                 // Pasar el idToken a Firebase para autenticar
                 if (userInfo.idToken) {
@@ -141,7 +161,7 @@ const Login = () => {
             console.error('Error al iniciar sesión con Google:', error);
 
             let errorMessage = 'No se pudo iniciar sesión con Google';
-            if (GoogleSignin && statusCodes) {
+            if (Googlesignin && statusCodes) {
                 if (error.code === statusCodes.SIGN_IN_CANCELLED) {
                     errorMessage = 'Inicio de sesión cancelado';
                 } else if (error.code === statusCodes.IN_PROGRESS) {
@@ -510,4 +530,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Login; 
+export default Login;

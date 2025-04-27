@@ -1,7 +1,8 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
@@ -24,6 +25,7 @@ const OrdinemColors = {
 };
 
 export default function TabLayout() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? OrdinemColors.dark : OrdinemColors.light;
 
@@ -53,11 +55,20 @@ export default function TabLayout() {
         name="products"
         options={{
           title: 'Productos',
+          headerRight: () => (
+            <TouchableOpacity 
+              style={{ marginRight: 16 }}
+              onPress={() => router.push('/pair-device')}
+            >
+              <Ionicons name="add-circle-outline" size={24} color="#6D9EBE" />
+            </TouchableOpacity>
+          ),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cube-outline" size={size || 24} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="notifications"
         options={{
@@ -72,7 +83,7 @@ export default function TabLayout() {
         options={{
           title: 'Ajustes',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size || 24} color={color} />
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
         }}
       />

@@ -10,8 +10,7 @@ import {
     sendPasswordResetEmail,
     initializeAuth,
     getReactNativePersistence,
-    setPersistence,
-    browserLocalPersistence
+    signInWithCustomToken
 } from 'firebase/auth';
 import { getDatabase, ref, set, get, update } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,10 +29,23 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializar Auth con persistencia asegurando que funcione en React Native
+// Inicializar Auth con persistencia para React Native
 const auth = initializeAuth(app, {
     persistence: getReactNativePersistence(AsyncStorage)
 });
+
+// Función para recargar la persistencia
+export const reloadAuthPersistence = async () => {
+    try {
+        if (auth._persistenceManager) {
+            await auth._persistenceManager.reload();
+        }
+        return true;
+    } catch (error) {
+        console.error('Error al recargar la persistencia:', error);
+        throw error;
+    }
+};
 
 // Inicializar Database
 const database = getDatabase(app);
@@ -46,22 +58,25 @@ export { app, auth, database };
 // Autenticación de usuario
 export const signInWithEmail = async (email, password) => {
     try {
-        // Establecer persistencia local para este inicio de sesión
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        // Verificar si el email está verificado
-        if (!user.emailVerified) {
-            throw { code: 'auth/email-not-verified', message: 'Por favor, verifica tu correo electrónico antes de iniciar sesión.' };
-        }
+        // Obtener un token fresco
+        const token = await user.getIdToken(true);
 
-        // Guardar información adicional en AsyncStorage para persistencia adicional
-        await AsyncStorage.setItem('user_credential', JSON.stringify({
+        // Guardar solo datos no sensibles y el token
+        const userData = {
             uid: user.uid,
             email: user.email,
             emailVerified: user.emailVerified,
             displayName: user.displayName,
-        }));
+            lastLoginAt: new Date().toISOString(),
+            token: token
+        };
+
+        // Almacenar datos de sesión
+        await AsyncStorage.setItem('user_credential', JSON.stringify(userData));
+        await AsyncStorage.setItem('userToken', token);
 
         return user;
     } catch (error) {
@@ -210,21 +225,6 @@ export const getUserDevices = async (userId) => {
     try {
         const devicesRef = ref(database, `users/${userId}/devices`);
         const snapshot = await get(devicesRef);
-
-        if (snapshot.exists()) {
-            return snapshot.val();
-        } else {
-            return {};
-        }
-    } catch (error) {
-        throw error;
-    }
-};
-
-export const getDeviceProducts = async (deviceId) => {
-    try {
-        const productsRef = ref(database, `devices/${deviceId}/products`);
-        const snapshot = await get(productsRef);
 
         if (snapshot.exists()) {
             return snapshot.val();
@@ -473,4 +473,199 @@ export const getProductStats = async () => {
         console.error('Error al obtener estadísticas:', error);
         throw error;
     }
-}; 
+};
+
+export const linkDevice = async (deviceId) => {
+    try {
+        // Primero verificar que hay un usuario autenticado
+        if (!auth.currentUser) {
+            throw new Error('Usuario no autenticado');
+        }
+
+        const userId = auth.currentUser.uid;
+
+        // Actualizar el vínculo en los datos del usuario directamente
+        // Esto evita verificar el dispositivo primero, lo que puede causar errores de permiso
+        await set(ref(database, `users/${userId}/devices/${deviceId}`), true);
+
+        // Inicializar el dispositivo si no existe
+        // Esta operación solo se realizará si tienes permisos para escribir en esta ruta
+        try {
+            const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
+            const snapshot = await get(deviceRef);
+
+            if (!snapshot.exists()) {
+                // Inicializar el dispositivo con datos básicos
+                const now = new Date().toISOString();
+                await set(deviceRef, {
+                    last_update: now,
+                    products: {}
+                });
+            }
+        } catch (deviceError) {
+            // Si no podemos acceder a la ruta del dispositivo, solo registramos el error
+            // pero no interrumpimos el proceso, ya que el dispositivo puede estar gestionado
+            // por otro sistema
+            console.log('Nota: No se pudo verificar o inicializar el dispositivo:', deviceError.message);
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error al vincular dispositivo:', error);
+        throw error;
+    }
+};
+
+export const unlinkDevice = async (deviceId) => {
+    try {
+        const userId = auth.currentUser.uid;
+        await set(ref(database, `users/${userId}/devices/${deviceId}`), null);
+        return true;
+    } catch (error) {
+        console.error('Error al desvincular dispositivo:', error);
+        throw error;
+    }
+};
+
+export const getLinkedDevices = async () => {
+    try {
+        const userId = auth.currentUser.uid;
+        const devicesRef = ref(database, `users/${userId}/devices`);
+        const snapshot = await get(devicesRef);
+
+        if (!snapshot.exists()) {
+            return [];
+        }
+
+        const linkedDevices = [];
+        const deviceIds = Object.keys(snapshot.val());
+
+        // Si no hay dispositivos vinculados, devolver array vacío
+        if (deviceIds.length === 0) {
+            return [];
+        }
+
+        const now = new Date().toISOString();
+
+        // Procesar cada dispositivo vinculado
+        for (const deviceId of deviceIds) {
+            try {
+                // Intentar obtener información detallada del dispositivo
+                const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
+                const deviceSnapshot = await get(deviceRef);
+
+                if (deviceSnapshot.exists()) {
+                    // Si podemos acceder a los datos del dispositivo, usar esa información
+                    const deviceData = deviceSnapshot.val();
+                    const products = deviceData.products || {};
+
+                    linkedDevices.push({
+                        id: deviceId,
+                        last_update: deviceData.last_update,
+                        product_count: Object.keys(products).length
+                    });
+                } else {
+                    // Si el dispositivo no existe en la ruta ordinem/devices, crear info básica
+                    linkedDevices.push({
+                        id: deviceId,
+                        last_update: now,
+                        product_count: 0
+                    });
+                }
+            } catch (deviceError) {
+                // Si hay error de permisos, añadir el dispositivo con información básica
+                console.log(`Nota: No se pudo acceder a los detalles del dispositivo ${deviceId}: ${deviceError.message}`);
+                linkedDevices.push({
+                    id: deviceId,
+                    last_update: now,
+                    product_count: 0
+                });
+            }
+        }
+
+        return linkedDevices;
+    } catch (error) {
+        console.error('Error al obtener dispositivos:', error);
+        throw error;
+    }
+};
+
+export const getDeviceProducts = async (deviceId) => {
+    try {
+        const deviceRef = ref(database, `ordinem/devices/${deviceId}/products`);
+        try {
+            const snapshot = await get(deviceRef);
+
+            if (!snapshot.exists()) {
+                return [];
+            }
+
+            const products = [];
+            const productsData = snapshot.val();
+
+            for (const [barcode, data] of Object.entries(productsData)) {
+                products.push({
+                    barcode,
+                    product_name: data.product_name || data.name || `Producto ${barcode.slice(-4)}`,
+                    brand: data.brand || "",
+                    category: data.category || "Sin categoría",
+                    expiry_date: data.expiry_date,
+                    last_detected: data.last_detected,
+                    image_url: data.image_url || ""
+                });
+            }
+
+            return products;
+        } catch (permissionError) {
+            console.error(`Error de permisos al obtener productos del dispositivo ${deviceId}: ${permissionError.message}`);
+            // Devolvemos un array vacío cuando no se puede acceder a los datos del dispositivo
+            return [];
+        }
+    } catch (error) {
+        console.error('Error al obtener productos del dispositivo:', error);
+        throw error;
+    }
+};
+
+// Función para verificar y renovar el token
+export const verifyAndRefreshToken = async () => {
+    try {
+        const storedToken = await AsyncStorage.getItem('userToken');
+        const storedUser = await AsyncStorage.getItem('user_credential');
+
+        if (!storedToken || !storedUser) {
+            return null;
+        }
+
+        const user = auth.currentUser;
+        if (!user) {
+            // No podemos usar signInWithCustomToken con un ID token normal
+            // En lugar de eso, intentamos cargar el usuario desde el almacenamiento
+            try {
+                const parsedUser = JSON.parse(storedUser);
+                // Si el usuario tiene credenciales almacenadas, podemos intentar
+                // iniciar sesión con el método adecuado según el tipo de autenticación
+                console.log('Usuario no autenticado. Intentando recuperar sesión.');
+                return null;
+            } catch (parseError) {
+                console.error('Error al analizar datos de usuario almacenados:', parseError);
+                return null;
+            }
+        }
+
+        // Verificar y renovar el token solo si hay un usuario autenticado
+        try {
+            const newToken = await user.getIdToken(true);
+            await AsyncStorage.setItem('userToken', newToken);
+            return user;
+        } catch (tokenError) {
+            console.error('Error al renovar token:', tokenError);
+            return null;
+        }
+    } catch (error) {
+        console.error('Error al verificar token:', error);
+        // Limpiar datos almacenados solo si hay un error real
+        await AsyncStorage.multiRemove(['user_credential', 'userToken']);
+        return null;
+    }
+};
