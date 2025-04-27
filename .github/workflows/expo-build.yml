@@ -6,9 +6,11 @@ on:
       - main
   workflow_dispatch:
 
+# Definimos una configuración común que se reutilizará en ambos jobs
 jobs:
-  build:
-    name: Expo Build Local
+  # Job para construir el APK
+  build-apk:
+    name: Build APK
     runs-on: ubuntu-latest
     steps:
       - name: 🏗 Setup repository
@@ -19,16 +21,18 @@ jobs:
         with:
           node-version: 18.x
           cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
 
-      # Caché específica para node_modules
       - name: 💾 Cache node_modules
         uses: actions/cache@v3
         id: node-modules-cache
         with:
-          path: node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
+          path: |
+            node_modules
+            */*/node_modules
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node-modules-
+            ${{ runner.os }}-modules-
 
       - name: 🏗 Setup Java for Android builds
         uses: actions/setup-java@v4
@@ -36,7 +40,6 @@ jobs:
           distribution: "zulu"
           java-version: "17"
 
-      # Caché de Gradle para builds de Android
       - name: 💾 Cache Gradle
         uses: actions/cache@v3
         with:
@@ -44,15 +47,14 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             android/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
       - name: 📦 Install dependencies
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
-        run: npm install
+        run: npm ci
 
-      # Caché para EAS CLI
       - name: 💾 Cache EAS CLI
         uses: actions/cache@v3
         with:
@@ -60,14 +62,13 @@ jobs:
           key: ${{ runner.os }}-eas-cli-${{ hashFiles('**/eas.json') }}
           restore-keys: |
             ${{ runner.os }}-eas-cli-
-          
+
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      # Resto del workflow...
       - name: 🔐 Verify EAS authentication
         run: npx eas whoami
         env:
@@ -85,11 +86,82 @@ jobs:
           echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
           echo "APK encontrado en: $APK_PATH"
 
+      - name: 📦 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ${{ env.APK_PATH }}
+          if-no-files-found: error
+
+  # Job para construir el AAB
+  build-aab:
+    name: Build AAB
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🏗 Setup repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: 💾 Cache node_modules
+        uses: actions/cache@v3
+        id: node-modules-cache
+        with:
+          path: |
+            node_modules
+            */*/node_modules
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-modules-
+
+      - name: 🏗 Setup Java for Android builds
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: 💾 Cache Gradle
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 📦 Install dependencies
+        if: steps.node-modules-cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: 💾 Cache EAS CLI
+        uses: actions/cache@v3
+        with:
+          path: ~/.eas-cli
+          key: ${{ runner.os }}-eas-cli-${{ hashFiles('**/eas.json') }}
+          restore-keys: |
+            ${{ runner.os }}-eas-cli-
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 🔐 Verify EAS authentication
+        run: npx eas whoami
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
       - name: 🚀 Modificar eas.json para AAB
         run: |
-          # Modificamos temporalmente el eas.json para generar el AAB
           jq '.build.production.android.buildType = "app-bundle"' eas.json > temp.json && mv temp.json eas.json
-          cat eas.json
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
@@ -105,19 +177,18 @@ jobs:
           echo "AAB_PATH=$AAB_PATH" >> $GITHUB_ENV
           echo "AAB encontrado en: $AAB_PATH"
 
-      - name: 📦 Upload APK artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: ${{ env.APK_PATH }}
-          if-no-files-found: error
-
-      - name: 📦 Upload AAB artifacts
+      - name: 📦 Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-aab
           path: ${{ env.AAB_PATH }}
           if-no-files-found: error
 
+  # Job final que depende de los dos anteriores y muestra un resumen
+  summary:
+    name: Build Summary
+    needs: [build-apk, build-aab]
+    runs-on: ubuntu-latest
+    steps:
       - name: 📋 Build Summary
         run: echo "✅ Los builds de APK y AAB se han completado correctamente y se han subido como artifacts de GitHub Actions."
