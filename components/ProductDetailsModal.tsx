@@ -360,14 +360,18 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
 const windowHeight = Dimensions.get('window').height;
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  scrollContainer: {
     padding: 16,
+  },
+  header: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    padding: 16,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
     position: 'relative',
-    justifyContent: 'center',
+    marginBottom: 16,
   },
   handleIndicator: {
     backgroundColor: '#E0E0E0',
@@ -392,24 +396,38 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 300,
     backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    marginBottom: 16,
   },
-  infoContainer: {
-    padding: 16,
+  imagePlaceholder: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+    marginBottom: 16,
   },
-  productName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
+  barcodeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 16,
   },
-  brand: {
-    fontSize: 18,
+  barcode: {
+    marginLeft: 8,
+    fontSize: 14,
     color: '#666',
-    marginBottom: 8,
   },
   scoresContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginVertical: 16,
+    marginVertical: 20,
+    paddingVertical: 16,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
   },
   scoreItem: {
     alignItems: 'center',
@@ -437,6 +455,11 @@ const styles = StyleSheet.create({
   },
   section: {
     marginTop: 24,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   sectionTitle: {
     fontSize: 20,
@@ -455,6 +478,9 @@ const styles = StyleSheet.create({
   },
   nutrientGroup: {
     marginBottom: 24,
+    padding: 12,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
   },
   nutrientGroupTitle: {
     fontSize: 18,
@@ -488,12 +514,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 8,
+    marginTop: 32,
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#f0f7fc',
+    borderRadius: 12,
     gap: 8,
+    borderWidth: 1,
+    borderColor: '#d0e6f7',
   },
   linkButtonText: {
     fontSize: 16,

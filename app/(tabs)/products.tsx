@@ -246,7 +246,7 @@ export default function ProductsScreen() {
   useEffect(() => {
     const filtered = filterProducts(searchQuery, categoryFilter, selectedDevice || null);
     setFilteredProducts(filtered);
-  }, [searchQuery, categoryFilter, selectedDevice, products]);
+  }, [searchQuery, categoryFilter, selectedDevice, products, filterProducts]);
 
   // Cambiar filtro de categoría
   const handleCategoryFilter = (category: string) => {

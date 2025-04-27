@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   getProducts,
   getProductCategories,
@@ -182,31 +182,30 @@ export function useProducts() {
     }
   };
 
-  const filterProducts = (
-    query: string,
-    category: string,
-    deviceId: string | null = null
-  ) => {
-    let filtered = [...products];
+  const filterProducts = useCallback(
+    (query: string, category: string, deviceId: string | null = null) => {
+      let filtered = [...products];
 
-    if (query) {
-      filtered = filtered.filter(
-        (product) =>
-          product.name.toLowerCase().includes(query.toLowerCase()) ||
-          product.barcode?.toLowerCase().includes(query.toLowerCase())
-      );
-    }
+      if (query) {
+        filtered = filtered.filter(
+          (product) =>
+            product.name.toLowerCase().includes(query.toLowerCase()) ||
+            product.barcode?.toLowerCase().includes(query.toLowerCase())
+        );
+      }
 
-    if (category) {
-      filtered = filtered.filter((product) => product.category === category);
-    }
+      if (category) {
+        filtered = filtered.filter((product) => product.category === category);
+      }
 
-    if (deviceId) {
-      filtered = filtered.filter((product) => product.deviceId === deviceId);
-    }
+      if (deviceId) {
+        filtered = filtered.filter((product) => product.deviceId === deviceId);
+      }
 
-    return filtered;
-  };
+      return filtered;
+    },
+    [products]
+  );
 
   return {
     products,
