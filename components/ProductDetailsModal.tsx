@@ -69,7 +69,19 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
   const [nutriScoreError, setNutriScoreError] = useState(false);
   const [ecoScoreError, setEcoScoreError] = useState(false);
   
-  // Intentar la URL alternativa para ecoscore si la primera falla
+  // Intentar la URL alternativa para ecoscore solo cuando cambia visible o cuando hay un error
+  useEffect(() => {
+    // Reiniciar estados cuando el modal se abre
+    if (visible) {
+      setNutriScoreLoading(true);
+      setEcoScoreLoading(true);
+      setNutriScoreError(false);
+      setEcoScoreError(false);
+      setUseEcoScoreFallback(false);
+    }
+  }, [visible]);
+  
+  // Efecto separado para el manejo de fallback
   useEffect(() => {
     if (ecoScoreError && !useEcoScoreFallback) {
       setUseEcoScoreFallback(true);
@@ -78,7 +90,8 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
     }
   }, [ecoScoreError, useEcoScoreFallback]);
 
-  React.useEffect(() => {
+  // Mostrar el modal cuando sea visible
+  useEffect(() => {
     if (visible && bottomSheetRef.current) {
       bottomSheetRef.current.snapToIndex(0);
     }

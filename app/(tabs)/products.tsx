@@ -220,7 +220,7 @@ export default function ProductsScreen() {
     }
     
     setProductsOFFData(barcodeData);
-  }, [fetchProductFromOpenFoodFacts, productsOFFData]);
+  }, [fetchProductFromOpenFoodFacts]); // Quitamos productsOFFData para evitar el bucle infinito
   
   // Cargar datos de OpenFoodFacts cuando cambian los productos
   useEffect(() => {
