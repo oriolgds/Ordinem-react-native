@@ -7,12 +7,18 @@ import {
   Alert,
   ActivityIndicator,
   AppState,
+  Modal,
+  TextInput,
+  ScrollView,
 } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ProductDetailsModal } from '@/components/ProductDetailsModal';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { getDatabase, ref, set } from 'firebase/database';
+import { getLinkedDevices } from '@/services/firebase';
+import { useProducts } from '@/hooks/useProducts';
 
 interface ProductData {
   product: {
@@ -51,8 +57,30 @@ export default function ProductScanner() {
   const [modalVisible, setModalVisible] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<ProductData | null>(null);
   const [scannedBarcode, setScannedBarcode] = useState<string>('');
+  const [devices, setDevices] = useState<Array<{id: string, product_count: number}>>([]);
+  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
+  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
+  const [expiryDate, setExpiryDate] = useState<string>('');
+  const [showExpiryModal, setShowExpiryModal] = useState(false);
+  const { devices: linkedDevices } = useProducts();
+  
   const router = useRouter();
   const navigation = useNavigation();
+
+  // Función para formatear la fecha a YYYY-MM-DD
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Inicializar fecha de caducidad a 7 días en el futuro
+  useEffect(() => {
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 7);
+    setExpiryDate(formatDate(defaultDate));
+  }, []);
 
   useEffect(() => {
     const getBarCodeScannerPermissions = async () => {
@@ -62,6 +90,35 @@ export default function ProductScanner() {
 
     getBarCodeScannerPermissions();
   }, []);
+
+  // Cargar dispositivos vinculados
+  useEffect(() => {
+    const loadDevices = async () => {
+      try {
+        const linkedDevices = await getLinkedDevices();
+        setDevices(linkedDevices);
+        
+        // Si solo hay un dispositivo, seleccionarlo automáticamente
+        if (linkedDevices.length === 1) {
+          setSelectedDevice(linkedDevices[0].id);
+        }
+      } catch (error) {
+        console.error('Error al cargar dispositivos:', error);
+      }
+    };
+    
+    loadDevices();
+  }, []);
+
+  // Actualizar con el último estado de linkedDevices
+  useEffect(() => {
+    if (linkedDevices.length > 0) {
+      setDevices(linkedDevices);
+      if (linkedDevices.length === 1) {
+        setSelectedDevice(linkedDevices[0].id);
+      }
+    }
+  }, [linkedDevices]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -85,6 +142,50 @@ export default function ProductScanner() {
     return unsubscribe;
   }, [navigation]);
 
+  // Guardar producto en Firebase
+  const saveProductToDevice = async (barcode: string, productData: any) => {
+    if (!selectedDevice) {
+      // Si no hay dispositivo seleccionado, mostrar selector
+      setShowDeviceSelector(true);
+      return false;
+    }
+
+    try {
+      const database = getDatabase();
+      const now = new Date().toISOString();
+      
+      // Crear referencia al producto en la estructura Firebase
+      const productRef = ref(
+        database, 
+        `ordinem/devices/${selectedDevice}/products/${barcode}`
+      );
+
+      // Guardar datos del producto
+      await set(productRef, {
+        product_name: productData.product_name,
+        category: productData.categories_hierarchy?.[0]?.split(':')?.[1] || 'Alimentos',
+        expiry_date: expiryDate,
+        last_detected: now,
+      });
+
+      Alert.alert(
+        'Producto guardado',
+        'El producto ha sido añadido correctamente al dispositivo.',
+        [{ text: 'OK' }]
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Error al guardar producto:', error);
+      Alert.alert(
+        'Error',
+        'No se pudo guardar el producto. Por favor, inténtalo de nuevo.',
+        [{ text: 'OK' }]
+      );
+      return false;
+    }
+  };
+
   const updateScannedProduct = async (product: any) => {
     // Primero cerramos el modal actual si está abierto
     if (modalVisible) {
@@ -97,10 +198,8 @@ export default function ProductScanner() {
       status: 1
     });
     
-    // Pequeño timeout para asegurar que el modal anterior se haya cerrado
-    setTimeout(() => {
-      setModalVisible(true);
-    }, 100);
+    // Mostrar modal para configurar fecha de caducidad
+    setShowExpiryModal(true);
   };
 
   const fetchProductInfo = async (barcode: string) => {
@@ -157,6 +256,52 @@ export default function ProductScanner() {
 
   const handleClose = () => {
     router.back();
+  };
+
+  const handleSaveProduct = async () => {
+    if (!scannedProduct || !scannedBarcode) {
+      Alert.alert('Error', 'No hay ningún producto para guardar.');
+      return;
+    }
+
+    setShowExpiryModal(false);
+    
+    // Si no hay dispositivos vinculados, mostrar alerta
+    if (devices.length === 0) {
+      Alert.alert(
+        'Sin dispositivos',
+        'No tienes ningún dispositivo vinculado. ¿Quieres vincular uno ahora?',
+        [
+          { text: 'No', style: 'cancel' },
+          { 
+            text: 'Sí', 
+            onPress: () => {
+              router.push('/pair-device');
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    // Si hay que seleccionar dispositivo, mostrar el selector
+    if (!selectedDevice && devices.length > 1) {
+      setShowDeviceSelector(true);
+      return;
+    }
+
+    // Guardar el producto
+    const success = await saveProductToDevice(
+      scannedBarcode, 
+      scannedProduct.product
+    );
+    
+    if (success) {
+      // Mostrar los detalles del producto tras guardar
+      setTimeout(() => {
+        setModalVisible(true);
+      }, 500);
+    }
   };
 
   if (hasPermission === null) {
@@ -240,6 +385,109 @@ export default function ProductScanner() {
             <Text style={styles.rescanButtonText}>Escanear otro</Text>
           </TouchableOpacity>
         )}
+
+        {/* Modal para configurar fecha de caducidad */}
+        <Modal
+          visible={showExpiryModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowExpiryModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Establecer fecha de caducidad</Text>
+              
+              {scannedProduct && (
+                <Text style={styles.productName}>
+                  {scannedProduct.product.product_name}
+                </Text>
+              )}
+              
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Fecha de caducidad:</Text>
+                <TextInput
+                  style={styles.dateInput}
+                  value={expiryDate}
+                  onChangeText={setExpiryDate}
+                  placeholder="AAAA-MM-DD"
+                  keyboardType="numeric"
+                />
+              </View>
+              
+              <View style={styles.buttonRow}>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => {
+                    setShowExpiryModal(false);
+                    setScanned(false);
+                  }}
+                >
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={handleSaveProduct}
+                >
+                  <Text style={styles.saveButtonText}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal para seleccionar dispositivo */}
+        <Modal
+          visible={showDeviceSelector}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDeviceSelector(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.deviceSelectorContent}>
+              <Text style={styles.modalTitle}>Seleccionar armario</Text>
+              
+              <ScrollView style={styles.deviceList}>
+                {devices.map(device => (
+                  <TouchableOpacity
+                    key={device.id}
+                    style={styles.deviceItem}
+                    onPress={async () => {
+                      setSelectedDevice(device.id);
+                      setShowDeviceSelector(false);
+                      // Intentar guardar el producto después de seleccionar dispositivo
+                      if (scannedProduct) {
+                        await saveProductToDevice(
+                          scannedBarcode, 
+                          scannedProduct.product
+                        );
+                        setModalVisible(true);
+                      }
+                    }}
+                  >
+                    <Ionicons name="cube-outline" size={24} color="#6D9EBE" />
+                    <View style={styles.deviceItemInfo}>
+                      <Text style={styles.deviceItemName}>Armario {device.id}</Text>
+                      <Text style={styles.deviceItemCount}>
+                        {device.product_count} productos
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={24} color="#999" />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              
+              <TouchableOpacity 
+                style={styles.cancelDeviceButton}
+                onPress={() => {
+                  setShowDeviceSelector(false);
+                  setScanned(false);
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         <ProductDetailsModal 
           visible={modalVisible}
@@ -378,5 +626,113 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     marginTop: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  productName: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    marginBottom: 5,
+  },
+  dateInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    fontSize: 16,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    marginHorizontal: 5,
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#ccc',
+  },
+  saveButton: {
+    backgroundColor: '#6D9EBE',
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  saveButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  deviceSelectorContent: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+  },
+  deviceList: {
+    maxHeight: '70%',
+  },
+  deviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e1e1e8',
+  },
+  deviceItemInfo: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  deviceItemName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  deviceItemCount: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  cancelDeviceButton: {
+    marginTop: 15,
+    backgroundColor: '#f2f2f7',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
 });

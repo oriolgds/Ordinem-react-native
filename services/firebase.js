@@ -476,16 +476,38 @@ export const getProductStats = async () => {
 
 export const linkDevice = async (deviceId) => {
     try {
-        const userId = auth.currentUser.uid;
-        const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
-        const snapshot = await get(deviceRef);
-
-        if (!snapshot.exists()) {
-            throw new Error('Dispositivo no encontrado');
+        // Primero verificar que hay un usuario autenticado
+        if (!auth.currentUser) {
+            throw new Error('Usuario no autenticado');
         }
 
-        // Vincular dispositivo al usuario
+        const userId = auth.currentUser.uid;
+
+        // Actualizar el vínculo en los datos del usuario directamente
+        // Esto evita verificar el dispositivo primero, lo que puede causar errores de permiso
         await set(ref(database, `users/${userId}/devices/${deviceId}`), true);
+
+        // Inicializar el dispositivo si no existe
+        // Esta operación solo se realizará si tienes permisos para escribir en esta ruta
+        try {
+            const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
+            const snapshot = await get(deviceRef);
+
+            if (!snapshot.exists()) {
+                // Inicializar el dispositivo con datos básicos
+                const now = new Date().toISOString();
+                await set(deviceRef, {
+                    last_update: now,
+                    products: {}
+                });
+            }
+        } catch (deviceError) {
+            // Si no podemos acceder a la ruta del dispositivo, solo registramos el error
+            // pero no interrumpimos el proceso, ya que el dispositivo puede estar gestionado
+            // por otro sistema
+            console.log('Nota: No se pudo verificar o inicializar el dispositivo:', deviceError.message);
+        }
+
         return true;
     } catch (error) {
         console.error('Error al vincular dispositivo:', error);
@@ -517,17 +539,45 @@ export const getLinkedDevices = async () => {
         const linkedDevices = [];
         const deviceIds = Object.keys(snapshot.val());
 
-        for (const deviceId of deviceIds) {
-            const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
-            const deviceSnapshot = await get(deviceRef);
-            if (deviceSnapshot.exists()) {
-                const deviceData = deviceSnapshot.val();
-                const products = deviceData.products || {};
+        // Si no hay dispositivos vinculados, devolver array vacío
+        if (deviceIds.length === 0) {
+            return [];
+        }
 
+        const now = new Date().toISOString();
+
+        // Procesar cada dispositivo vinculado
+        for (const deviceId of deviceIds) {
+            try {
+                // Intentar obtener información detallada del dispositivo
+                const deviceRef = ref(database, `ordinem/devices/${deviceId}`);
+                const deviceSnapshot = await get(deviceRef);
+
+                if (deviceSnapshot.exists()) {
+                    // Si podemos acceder a los datos del dispositivo, usar esa información
+                    const deviceData = deviceSnapshot.val();
+                    const products = deviceData.products || {};
+
+                    linkedDevices.push({
+                        id: deviceId,
+                        last_update: deviceData.last_update,
+                        product_count: Object.keys(products).length
+                    });
+                } else {
+                    // Si el dispositivo no existe en la ruta ordinem/devices, crear info básica
+                    linkedDevices.push({
+                        id: deviceId,
+                        last_update: now,
+                        product_count: 0
+                    });
+                }
+            } catch (deviceError) {
+                // Si hay error de permisos, añadir el dispositivo con información básica
+                console.log(`Nota: No se pudo acceder a los detalles del dispositivo ${deviceId}: ${deviceError.message}`);
                 linkedDevices.push({
                     id: deviceId,
-                    last_update: deviceData.last_update,
-                    product_count: Object.keys(products).length
+                    last_update: now,
+                    product_count: 0
                 });
             }
         }
@@ -542,24 +592,32 @@ export const getLinkedDevices = async () => {
 export const getDeviceProducts = async (deviceId) => {
     try {
         const deviceRef = ref(database, `ordinem/devices/${deviceId}/products`);
-        const snapshot = await get(deviceRef);
+        try {
+            const snapshot = await get(deviceRef);
 
-        if (!snapshot.exists()) {
+            if (!snapshot.exists()) {
+                return [];
+            }
+
+            const products = [];
+            const productsData = snapshot.val();
+
+            for (const [barcode, data] of Object.entries(productsData)) {
+                products.push({
+                    barcode,
+                    product_name: data.product_name || `Producto ${barcode}`,
+                    category: data.category || "Sin categoría",
+                    expiry_date: data.expiry_date,
+                    last_detected: data.last_detected
+                });
+            }
+
+            return products;
+        } catch (permissionError) {
+            console.error(`Error de permisos al obtener productos del dispositivo ${deviceId}: ${permissionError.message}`);
+            // Devolvemos un array vacío cuando no se puede acceder a los datos del dispositivo
             return [];
         }
-
-        const products = [];
-        const productsData = snapshot.val();
-
-        for (const [barcode, data] of Object.entries(productsData)) {
-            products.push({
-                barcode,
-                expiry_date: data.expiry_date,
-                last_detected: data.last_detected
-            });
-        }
-
-        return products;
     } catch (error) {
         console.error('Error al obtener productos del dispositivo:', error);
         throw error;

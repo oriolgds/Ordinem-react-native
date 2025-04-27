@@ -10,7 +10,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const scanAreaSize = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.65;
 
 export default function PairDeviceScreen() {
-  const [hasPermission, setHasPermission] = useState(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function PairDeviceScreen() {
     })();
   }, []);
 
-  const handleBarCodeScanned = async ({ data }) => {
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
     try {
       setScanned(true);
       setLoading(true);
@@ -37,7 +37,8 @@ export default function PairDeviceScreen() {
       );
     } catch (error) {
       console.error('Error al vincular dispositivo:', error);
-      Alert.alert('Error', error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      Alert.alert('Error', errorMessage);
       setScanned(false);
     } finally {
       setLoading(false);

@@ -1,0 +1,22 @@
+{
+    "rules": {
+        "users": {
+            "$uid": {
+                ".read": "$uid === auth.uid",
+                ".write": "$uid === auth.uid",
+                "devices": {
+                    ".read": "$uid === auth.uid",
+                    ".write": "$uid === auth.uid"
+                }
+            }
+        },
+        "ordinem": {
+            "devices": {
+                "$deviceId": {
+                    ".read": "root.child('users/' + auth.uid + '/devices/' + $deviceId).exists()",
+                    ".write": "root.child('users/' + auth.uid + '/devices/' + $deviceId).exists()"
+                }
+            }
+        }
+    }
+}

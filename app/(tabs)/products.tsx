@@ -8,20 +8,12 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { getProducts } from '@/services/firebase';
 import { ProductDetailsModal } from '@/components/ProductDetailsModal';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  location: string;
-  expiryDate: string;
-  barcode: string;
-}
+import { useProducts, Product, Device } from '@/hooks/useProducts';
 
 interface ProductCardProps {
   product: Product;
@@ -79,65 +71,121 @@ const SearchBar = ({ value, onChangeText }: SearchBarProps) => {
   );
 };
 
+// Componente para el selector de dispositivos
+interface DevicePickerProps {
+  devices: Device[];
+  selectedDevice: string | null;
+  onSelectDevice: (deviceId: string) => void;
+}
+
+const DevicePicker = ({ devices, selectedDevice, onSelectDevice }: DevicePickerProps) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const router = useRouter();
+
+  // Si no hay dispositivos, no mostramos nada
+  if (devices.length === 0) {
+    return null;
+  }
+  
+  const currentDevice = devices.find(d => d.id === selectedDevice);
+
+  return (
+    <View style={styles.devicePickerContainer}>
+      <TouchableOpacity 
+        style={styles.devicePickerButton}
+        onPress={() => setModalVisible(true)}
+      >
+        <Ionicons name="cube-outline" size={20} color="#6D9EBE" />
+        <Text style={styles.devicePickerText}>
+          {currentDevice ? `Armario: ${currentDevice.id}` : "Seleccionar armario"}
+        </Text>
+        <Ionicons name="chevron-down" size={16} color="#999" />
+      </TouchableOpacity>
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Seleccionar armario</Text>
+            {devices.map(device => (
+              <TouchableOpacity
+                key={device.id}
+                style={[
+                  styles.deviceOption,
+                  selectedDevice === device.id && styles.deviceOptionSelected
+                ]}
+                onPress={() => {
+                  onSelectDevice(device.id);
+                  setModalVisible(false);
+                }}
+              >
+                <Ionicons 
+                  name={selectedDevice === device.id ? "cube" : "cube-outline"} 
+                  size={24} 
+                  color={selectedDevice === device.id ? "#6D9EBE" : "#666"} 
+                />
+                <View style={styles.deviceInfo}>
+                  <Text style={styles.deviceName}>Armario {device.id}</Text>
+                  <Text style={styles.deviceStats}>
+                    {device.product_count} productos • Actualizado {new Date(device.last_update).toLocaleDateString('es-ES')}
+                  </Text>
+                </View>
+                {selectedDevice === device.id && (
+                  <Ionicons name="checkmark-circle" size={24} color="#6D9EBE" />
+                )}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity 
+              style={styles.addDeviceButton}
+              onPress={() => {
+                setModalVisible(false);
+                router.push('/pair-device');
+              }}
+            >
+              <Ionicons name="add-circle-outline" size={24} color="#6D9EBE" />
+              <Text style={styles.addDeviceText}>Añadir nuevo armario</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+};
+
 export default function ProductsScreen() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const {
+    products,
+    categories,
+    devices,
+    selectedDevice,
+    setSelectedDevice,
+    loading,
+    refreshing,
+    onRefresh,
+    filterProducts,
+    devicesFetched
+  } = useProducts();
+
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const router = useRouter();
 
-  // Cargar productos desde Firebase
-  const loadProducts = async () => {
-    try {
-      const productsData = await getProducts();
-      setProducts(productsData);
-      filterProducts(productsData, searchQuery, categoryFilter);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error al cargar productos:', error);
-      setLoading(false);
-    }
-  };
-
-  // Filtrar productos
-  const filterProducts = (productsData: Product[], query: string, category: string) => {
-    let filtered = productsData;
-    
-    if (query) {
-      filtered = filtered.filter(product => 
-        product.name.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-    
-    if (category) {
-      filtered = filtered.filter(product => 
-        product.category === category
-      );
-    }
-    
+  // Efecto para filtrar productos cuando cambian los filtros o los productos
+  useEffect(() => {
+    const filtered = filterProducts(searchQuery, categoryFilter, selectedDevice || null);
     setFilteredProducts(filtered);
-  };
-
-  // Efecto para cargar productos al inicio
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  // Efecto para filtrar productos cuando cambian los filtros
-  useEffect(() => {
-    filterProducts(products, searchQuery, categoryFilter);
-  }, [searchQuery, categoryFilter]);
-
-  // Manejar refresco de lista
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadProducts();
-    setRefreshing(false);
-  };
+  }, [searchQuery, categoryFilter, selectedDevice, products]);
 
   // Navegar a detalle del producto
   const handleProductPress = (product: Product) => {
@@ -150,10 +198,8 @@ export default function ProductsScreen() {
     setCategoryFilter(prevCategory => prevCategory === category ? '' : category);
   };
 
-  // Categorías disponibles
-  const categories = ['Alimentos', 'Bebidas', 'Limpieza', 'Otros'];
-
-  if (loading && !refreshing) {
+  // Pantalla de carga mientras se obtienen los dispositivos
+  if (loading && !refreshing && !devicesFetched) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6D9EBE" />
@@ -161,12 +207,70 @@ export default function ProductsScreen() {
     );
   }
 
+  // Pantalla de bienvenida cuando no hay armarios vinculados
+  if (devices.length === 0 && devicesFetched) {
+    return (
+      <View style={styles.welcomeContainer}>
+        <View style={styles.welcomeHeader}>
+          <Text style={styles.welcomeTitle}>Bienvenido a Ordinem</Text>
+          <Text style={styles.welcomeSubtitle}>Organiza tu despensa de manera inteligente</Text>
+        </View>
+        
+        <View style={styles.welcomeContent}>
+          <Ionicons name="cube" size={100} color="#6D9EBE" style={styles.welcomeIcon} />
+          
+          <Text style={styles.welcomeMessage}>
+            Para comenzar, necesitas vincular un armario inteligente Ordinem
+          </Text>
+          
+          <View style={styles.stepsContainer}>
+            <View style={styles.step}>
+              <View style={styles.stepNumberContainer}>
+                <Text style={styles.stepNumber}>1</Text>
+              </View>
+              <Text style={styles.stepText}>Configura tu armario Ordinem</Text>
+            </View>
+            
+            <View style={styles.step}>
+              <View style={styles.stepNumberContainer}>
+                <Text style={styles.stepNumber}>2</Text>
+              </View>
+              <Text style={styles.stepText}>Vincula el armario escaneando su código QR</Text>
+            </View>
+            
+            <View style={styles.step}>
+              <View style={styles.stepNumberContainer}>
+                <Text style={styles.stepNumber}>3</Text>
+              </View>
+              <Text style={styles.stepText}>¡Empieza a organizar y monitorear tus productos!</Text>
+            </View>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.welcomeButton}
+            onPress={() => router.push('/pair-device')}
+          >
+            <Ionicons name="qr-code-outline" size={24} color="white" style={styles.welcomeButtonIcon} />
+            <Text style={styles.welcomeButtonText}>Vincular un armario</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Pantalla normal de productos
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
+        />
+        
+        <DevicePicker 
+          devices={devices}
+          selectedDevice={selectedDevice}
+          onSelectDevice={setSelectedDevice}
         />
       </View>
 
@@ -203,10 +307,21 @@ export default function ProductsScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={handleRefresh}
+            onRefresh={onRefresh}
             colors={['#6D9EBE']}
           />
         }
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="cube-outline" size={80} color="#E1E1E8" />
+            <Text style={styles.emptyTitle}>
+              No hay productos en este armario
+            </Text>
+            <Text style={styles.emptyDescription}>
+              Los productos aparecerán aquí cuando sean detectados
+            </Text>
+          </View>
+        )}
       />
 
       <TouchableOpacity style={styles.fabButton} onPress={() => router.push('/ProductScanner')}>
@@ -382,5 +497,173 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  devicePickerContainer: {
+    marginTop: 8,
+  },
+  devicePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7',
+    borderRadius: 10,
+    padding: 10,
+  },
+  devicePickerText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#333',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  deviceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+  },
+  deviceOptionSelected: {
+    backgroundColor: '#E1E1E8',
+  },
+  deviceInfo: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  deviceName: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  deviceStats: {
+    fontSize: 14,
+    color: '#666',
+  },
+  addDeviceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  addDeviceText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: '#6D9EBE',
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  emptyTitle: {
+    marginTop: 12,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#999',
+  },
+  emptyDescription: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  emptyButton: {
+    marginTop: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: '#6D9EBE',
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontWeight: '500',
+  },
+  welcomeContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F2F2F7',
+  },
+  welcomeHeader: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F1F3C',
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: '#666',
+  },
+  welcomeContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  welcomeIcon: {
+    marginBottom: 20,
+  },
+  welcomeMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#333',
+  },
+  stepsContainer: {
+    paddingHorizontal: 20,
+    paddingRight: 40,
+    marginBottom: 20,
+  },
+  step: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  stepNumberContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#6D9EBE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  stepNumber: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  stepText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  welcomeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6D9EBE',
+    borderRadius: 10,
+    padding: 10,
+  },
+  welcomeButtonIcon: {
+    marginRight: 10,
+  },
+  welcomeButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
