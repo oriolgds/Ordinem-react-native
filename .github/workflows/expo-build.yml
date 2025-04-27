@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Expo Build
+    name: Expo Build Local
     runs-on: ubuntu-latest
     steps:
       - name: 🏗 Setup repository
@@ -18,7 +18,16 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18.x
-          cache: 'npm'
+          cache: "npm"
+
+      - name: 🏗 Setup Java for Android builds
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: 📦 Install dependencies
+        run: npm install
 
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
@@ -26,17 +35,54 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: 📦 Install dependencies
-        run: npm install
+      - name: 🔐 Verify EAS authentication
+        run: npx eas whoami
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      - name: 🚀 Build APK
-        run: npx eas build --platform android --profile production --non-interactive
+      - name: 🚀 Build APK locally
+        run: npx eas build --platform android --profile production --local
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-      - name: 🚀 Build AAB (App Bundle)
+      - name: 📂 Locate APK build output
+        id: find-apk
+        run: |
+          APK_PATH=$(find ./build-output -name "*.apk" | head -n 1)
+          echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
+          echo "APK encontrado en: $APK_PATH"
+
+      - name: 🚀 Modificar eas.json para AAB
         run: |
           # Modificamos temporalmente el eas.json para generar el AAB
           jq '.build.production.android.buildType = "app-bundle"' eas.json > temp.json && mv temp.json eas.json
-          npx eas build --platform android --profile production --non-interactive
+          cat eas.json
+
+      - name: 🚀 Build AAB locally
+        run: npx eas build --platform android --profile production --local
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📂 Locate AAB build output
+        id: find-aab
+        run: |
+          AAB_PATH=$(find ./build-output -name "*.aab" | head -n 1)
+          echo "AAB_PATH=$AAB_PATH" >> $GITHUB_ENV
+          echo "AAB encontrado en: $AAB_PATH"
+
+      - name: 📦 Upload APK artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-apk
+          path: ${{ env.APK_PATH }}
+          if-no-files-found: error
+
+      - name: 📦 Upload AAB artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-aab
+          path: ${{ env.AAB_PATH }}
+          if-no-files-found: error
 
       - name: 📋 Build Summary
-        run: echo "✅ Los builds de APK y AAB se han iniciado correctamente en EAS Build. Puedes consultar el progreso y descargar los archivos desde el dashboard de Expo."
+        run: echo "✅ Los builds de APK y AAB se han completado correctamente y se han subido como artifacts de GitHub Actions."
