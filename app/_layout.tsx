@@ -23,22 +23,25 @@ const OrdinemTheme = {
   colors: {
     ...DefaultTheme.colors,
     primary: '#6D9EBE',
-    background: '#F2F2F7',
-    text: '#1F1F3C',
+    background: '#FFFFFF',
     card: '#FFFFFF',
-    border: '#E1E1E8',
+    text: '#333333',
+    border: '#E0E0E0',
+    notification: '#FF5252',
   },
 };
 
-// Definir el tema oscuro personalizado
+// Tema oscuro personalizado
 const OrdinemDarkTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
     primary: '#6D9EBE',
+    background: '#121212',
     card: '#1E1E1E',
-    text: '#F2F2F7',
+    text: '#F0F0F0',
     border: '#333333',
+    notification: '#FF5252',
   },
 };
 
@@ -57,7 +60,7 @@ export default function RootLayout() {
         
         if (storedUser) {
           const userData = JSON.parse(storedUser);
-          console.log('Intentando restaurar sesión para:', userData.email);
+          // Comprobaciones silenciosas sin consola.log
           
           // Comprobar si hay un usuario autenticado en Firebase
           if (!auth.currentUser && userData.uid) {
@@ -69,8 +72,7 @@ export default function RootLayout() {
                 const { verifyAndRefreshToken } = await import('@/services/firebase');
                 await verifyAndRefreshToken();
               } catch (reAuthError) {
-                console.error('Error al reautenticar:', reAuthError);
-                // Limpiar datos de sesión inválidos
+                // Limpiar datos de sesión inválidos silenciosamente
                 await AsyncStorage.removeItem('user_credential');
                 await AsyncStorage.removeItem('userToken');
               }
@@ -78,9 +80,9 @@ export default function RootLayout() {
           }
         }
         
+        // No llamar a hideAsync aquí, lo manejaremos en el componente index.tsx
         setIsSessionLoaded(true);
       } catch (error) {
-        console.error('Error al comprobar la sesión guardada:', error);
         setIsSessionLoaded(true);
       }
     };
@@ -88,12 +90,8 @@ export default function RootLayout() {
     checkStoredSession();
   }, []);
 
-  useEffect(() => {
-    if (loaded && isSessionLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded, isSessionLoaded]);
-
+  // Solo devolvemos null mientras se cargan los assets y fuentes
+  // El splash screen permanecerá visible hasta que se oculte explícitamente en index.tsx
   if (!loaded || !isSessionLoaded) {
     return null;
   }

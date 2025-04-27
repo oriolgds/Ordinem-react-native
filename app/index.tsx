@@ -1,22 +1,72 @@
-import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import { Redirect } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Mantener el splash screen visible mientras verificamos la autenticación
+SplashScreen.preventAutoHideAsync();
 
 export default function Index() {
   const { authenticated, loading } = useAuth();
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  if (loading) {
+  useEffect(() => {
+    // Solo ocultar el splash screen cuando:
+    // 1. La autenticación ha terminado de cargar
+    // 2. Y hemos mostrado nuestra pantalla de carga por al menos 1 segundo
+    const timer = setTimeout(async () => {
+      setIsInitialLoading(false);
+      if (!loading) {
+        await SplashScreen.hideAsync().catch(() => {});
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    // Ocultar el splash screen cuando termina la carga de autenticación
+    if (!loading && !isInitialLoading) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [loading, isInitialLoading]);
+
+  // Mientras se está cargando, mostramos nuestro propio splash screen personalizado
+  if (loading || isInitialLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#6D9EBE" />
+      <View style={styles.splashContainer}>
+        <Image
+          source={require('@/assets/images/ordinem-logo.png')}
+          style={styles.splashLogo}
+          resizeMode="contain"
+        />
+        <ActivityIndicator size="large" color="#6D9EBE" style={styles.loader} />
       </View>
     );
   }
 
+  // Una vez que la autenticación está lista, redireccionamos según el estado
   if (authenticated) {
     return <Redirect href="/(tabs)/products" />;
   }
 
   return <Redirect href="/Login" />;
 }
+
+const styles = StyleSheet.create({
+  splashContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  splashLogo: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
+  },
+  loader: {
+    marginTop: 20,
+  }
+});

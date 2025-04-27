@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View, ActivityIndicator, Image, StyleSheet } from 'react-native';
 import AppNavigator from './navigation/AppNavigator';
 import { initNotifications } from './services/notifications';
 import { LogBox } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Ignorar advertencias específicas
 LogBox.ignoreLogs([
@@ -15,18 +17,41 @@ LogBox.ignoreLogs([
 
 // Punto de entrada de la aplicación
 export default function App() {
+    const [isReady, setIsReady] = useState(false);
+
     useEffect(() => {
-        // Inicializar notificaciones al arrancar la app
-        const setupNotifications = async () => {
+        // Función para inicializar la aplicación
+        const initialize = async () => {
             try {
+                // Inicializar notificaciones
                 await initNotifications();
+
+                // Simular un pequeño retraso para asegurar que la comprobación de autenticación se haya completado
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                setIsReady(true);
             } catch (error) {
-                console.warn('Error al inicializar notificaciones:', error);
+                console.warn('Error al inicializar la aplicación:', error);
+                setIsReady(true);
             }
         };
 
-        setupNotifications();
+        initialize();
     }, []);
+
+    // Mostrar pantalla de splash mientras se inicializa
+    if (!isReady) {
+        return (
+            <View style={styles.splashContainer}>
+                <Image
+                    source={require('./assets/images/ordinem-logo.png')}
+                    style={styles.splashLogo}
+                    resizeMode="contain"
+                />
+                <ActivityIndicator size="large" color="#6D9EBE" style={styles.loader} />
+            </View>
+        );
+    }
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
@@ -37,3 +62,19 @@ export default function App() {
         </GestureHandlerRootView>
     );
 }
+
+const styles = StyleSheet.create({
+    splashContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+    },
+    splashLogo: {
+        width: 150,
+        height: 150,
+    },
+    loader: {
+        marginTop: 20,
+    }
+});
