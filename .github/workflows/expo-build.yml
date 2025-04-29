@@ -6,9 +6,8 @@ on:
       - main
   workflow_dispatch:
 
-# Definimos una configuración común que se reutilizará en ambos jobs
 jobs:
-  # Job para construir el APK
+  # Creamos dos jobs separados para ejecutar los builds en paralelo
   build-apk:
     name: Build APK
     runs-on: ubuntu-latest
@@ -16,6 +15,7 @@ jobs:
       - name: 🏗 Setup repository
         uses: actions/checkout@v4
 
+      # Caché avanzada de Node.js
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
         with:
@@ -23,51 +23,76 @@ jobs:
           cache: "npm"
           cache-dependency-path: "**/package-lock.json"
 
+      # Caché de node_modules
       - name: 💾 Cache node_modules
         uses: actions/cache@v3
         id: node-modules-cache
         with:
           path: |
-            node_modules
-            */*/node_modules
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+            **/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-modules-
+            ${{ runner.os }}-node-modules-
 
+      # Caché de la configuración de Java
       - name: 🏗 Setup Java for Android builds
         uses: actions/setup-java@v4
         with:
           distribution: "zulu"
           java-version: "17"
+          cache: "gradle"
 
-      - name: 💾 Cache Gradle
+      # Caché extendida de Gradle
+      - name: 💾 Cache Gradle files
         uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.android/build-cache
             android/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', '**/gradle-wrapper.properties') }}
+            android/app/.gradle
+            android/app/build
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # Caché para Metro bundler
+      - name: 💾 Cache Metro bundler
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/metro-cache
+            ~/.metro
+            ${{ github.workspace }}/.expo
+          key: ${{ runner.os }}-metro-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-metro-
+
+      # Instalar dependencias solo si no hay caché
       - name: 📦 Install dependencies
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci
 
+      # Caché para EAS CLI y Expo
       - name: 💾 Cache EAS CLI
         uses: actions/cache@v3
         with:
-          path: ~/.eas-cli
-          key: ${{ runner.os }}-eas-cli-${{ hashFiles('**/eas.json') }}
+          path: |
+            ~/.eas-cli
+            ~/.expo
+            .expo
+          key: ${{ runner.os }}-eas-expo-${{ hashFiles('**/eas.json', '**/app.json') }}
           restore-keys: |
-            ${{ runner.os }}-eas-cli-
+            ${{ runner.os }}-eas-expo-
 
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+          expo-cache: true
 
       - name: 🔐 Verify EAS authentication
         run: npx eas whoami
@@ -75,25 +100,17 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🚀 Build APK locally
-        run: npx eas build --platform android --profile production --local
+        run: npx eas build --platform android --profile production --local --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-      - name: 📂 Locate APK build output
-        id: find-apk
-        run: |
-          APK_PATH=$(find ./build -name "*.apk" | head -n 1)
-          echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
-          echo "APK encontrado en: $APK_PATH"
 
       - name: 📦 Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: ${{ env.APK_PATH }}
+          path: /home/runner/work/Ordinem-react-native/Ordinem-react-native/build-*.apk
           if-no-files-found: error
 
-  # Job para construir el AAB
   build-aab:
     name: Build AAB
     runs-on: ubuntu-latest
@@ -101,6 +118,7 @@ jobs:
       - name: 🏗 Setup repository
         uses: actions/checkout@v4
 
+      # Caché avanzada de Node.js
       - name: 🏗 Setup Node
         uses: actions/setup-node@v4
         with:
@@ -108,51 +126,76 @@ jobs:
           cache: "npm"
           cache-dependency-path: "**/package-lock.json"
 
+      # Caché de node_modules
       - name: 💾 Cache node_modules
         uses: actions/cache@v3
         id: node-modules-cache
         with:
           path: |
-            node_modules
-            */*/node_modules
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+            **/node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-modules-
+            ${{ runner.os }}-node-modules-
 
+      # Caché de la configuración de Java
       - name: 🏗 Setup Java for Android builds
         uses: actions/setup-java@v4
         with:
           distribution: "zulu"
           java-version: "17"
+          cache: "gradle"
 
-      - name: 💾 Cache Gradle
+      # Caché extendida de Gradle
+      - name: 💾 Cache Gradle files
         uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.android/build-cache
             android/.gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', '**/gradle-wrapper.properties') }}
+            android/app/.gradle
+            android/app/build
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # Caché para Metro bundler
+      - name: 💾 Cache Metro bundler
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/metro-cache
+            ~/.metro
+            ${{ github.workspace }}/.expo
+          key: ${{ runner.os }}-metro-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-metro-
+
+      # Instalar dependencias solo si no hay caché
       - name: 📦 Install dependencies
         if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci
 
+      # Caché para EAS CLI y Expo
       - name: 💾 Cache EAS CLI
         uses: actions/cache@v3
         with:
-          path: ~/.eas-cli
-          key: ${{ runner.os }}-eas-cli-${{ hashFiles('**/eas.json') }}
+          path: |
+            ~/.eas-cli
+            ~/.expo
+            .expo
+          key: ${{ runner.os }}-eas-expo-${{ hashFiles('**/eas.json', '**/app.json') }}
           restore-keys: |
-            ${{ runner.os }}-eas-cli-
+            ${{ runner.os }}-eas-expo-
 
       - name: 🏗 Setup EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+          expo-cache: true
 
       - name: 🔐 Verify EAS authentication
         run: npx eas whoami
@@ -166,25 +209,18 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🚀 Build AAB locally
-        run: npx eas build --platform android --profile production --local
+        run: npx eas build --platform android --profile production --local --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-      - name: 📂 Locate AAB build output
-        id: find-aab
-        run: |
-          AAB_PATH=$(find ./build -name "*.aab" | head -n 1)
-          echo "AAB_PATH=$AAB_PATH" >> $GITHUB_ENV
-          echo "AAB encontrado en: $AAB_PATH"
 
       - name: 📦 Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-aab
-          path: ${{ env.AAB_PATH }}
+          path: /home/runner/work/Ordinem-react-native/Ordinem-react-native/build-*.aab
           if-no-files-found: error
 
-  # Job final que depende de los dos anteriores y muestra un resumen
+  # Job final que depende de los dos builds y muestra un resumen
   summary:
     name: Build Summary
     needs: [build-apk, build-aab]
