@@ -100,7 +100,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🚀 Build APK locally
-        run: npx eas build --platform android --profile production --local --non-interactive
+        run: npx eas build --platform android --profile production --local --non-interactive --output=./build-output.apk
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
@@ -108,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: /home/runner/work/Ordinem-react-native/Ordinem-react-native/build-*.apk
+          path: build-output.apk
           if-no-files-found: error
 
   build-aab:
@@ -209,7 +209,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: 🚀 Build AAB locally
-        run: npx eas build --platform android --profile production --local --non-interactive
+        run: npx eas build --platform android --profile production --local --non-interactive --output=./build-output.aab
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
@@ -217,7 +217,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-aab
-          path: /home/runner/work/Ordinem-react-native/Ordinem-react-native/build-*.aab
+          path: build-output.aab
           if-no-files-found: error
 
   # Job final que depende de los dos builds y muestra un resumen
