@@ -34,6 +34,7 @@ import { useRouter } from 'expo-router';
 import { ProductDetailsModal } from '@/components/ProductDetailsModal';
 import { useProducts, Product, Device } from '@/hooks/useProducts';
 import { ProductCard } from '@/components/ProductCard';
+import { fetchProductWithCache } from '@/services/cacheService';
 
 interface SearchBarProps {
   value: string;
@@ -170,17 +171,31 @@ export default function ProductsScreen() {
   // Estado para almacenar los datos de OpenFoodFacts de todos los productos
   const [productsOFFData, setProductsOFFData] = useState<{[barcode: string]: any}>({});
   
+  // Estado para almacenar el origen de los datos (caché o API)
+  const [productsOFFSource, setProductsOFFSource] = useState<{[barcode: string]: 'cache' | 'api'}>({});
+  
   // Función para obtener datos de OpenFoodFacts para un código de barras
   const fetchProductFromOpenFoodFacts = useCallback(async (barcode: string) => {
     try {
       setLoadingProductDetails(true);
-      const response = await fetch(
-        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
-      );
-      const data = await response.json();
+      // Usar el sistema de caché local en lugar de la función de Firebase
+      const result = await fetchProductWithCache(barcode);
       
-      if (data.status === 1) {
-        return data.product;
+      if (result.product) {
+        // Informar en consola del origen de los datos (caché o API)
+        if (result.source === 'cache') {
+          console.log(`Producto ${barcode} recuperado de la caché local`);
+        } else {
+          console.log(`Producto ${barcode} recuperado de OpenFoodFacts`);
+        }
+        
+        // Guardar el origen de los datos para usarlo posteriormente
+        setProductsOFFSource(prev => ({
+          ...prev,
+          [barcode]: result.source
+        }));
+        
+        return result.product;
       } 
       return null;
     } catch (error) {
@@ -442,7 +457,8 @@ export default function ProductsScreen() {
               vitamin_d_100g: productDetailsFromOFF.nutriments?.vitamin_d_100g || 0
             }
           },
-          status: 1
+          status: 1,
+          source: selectedProduct?.barcode ? productsOFFSource[selectedProduct.barcode] || 'api' : 'api'
         } : null}
         barcode={selectedProduct?.barcode || ''}
       />

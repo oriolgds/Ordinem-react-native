@@ -251,12 +251,70 @@ export const getProductFromCache = async (barcode) => {
         const snapshot = await get(productRef);
 
         if (snapshot.exists()) {
-            return snapshot.val();
+            const cachedData = snapshot.val();
+            // Verificar si los datos en caché son recientes (menos de 30 días)
+            const now = Date.now();
+            const cacheTime = cachedData.cached_at || 0;
+            const cacheAge = (now - cacheTime) / (1000 * 60 * 60 * 24); // edad en días
+
+            if (cacheAge < 30) {
+                console.log(`Usando datos en caché para ${barcode} (${cacheAge.toFixed(1)} días)`);
+                return cachedData.product;
+            } else {
+                console.log(`Datos en caché para ${barcode} expirados (${cacheAge.toFixed(1)} días)`);
+                return null;
+            }
         } else {
             return null;
         }
     } catch (error) {
-        throw error;
+        console.error('Error al obtener producto de la caché:', error);
+        return null;
+    }
+};
+
+export const saveProductToCache = async (barcode, productData) => {
+    try {
+        if (!barcode || !productData) return false;
+
+        const cacheData = {
+            product: productData,
+            cached_at: Date.now()
+        };
+
+        await set(ref(database, `product_cache/${barcode}`), cacheData);
+        console.log(`Producto ${barcode} guardado en caché`);
+        return true;
+    } catch (error) {
+        console.error('Error al guardar producto en caché:', error);
+        return false;
+    }
+};
+
+export const fetchProductWithCache = async (barcode) => {
+    try {
+        // Primero intentar obtener de la caché
+        const cachedProduct = await getProductFromCache(barcode);
+
+        if (cachedProduct) {
+            return { product: cachedProduct, source: 'cache' };
+        }
+
+        // Si no está en caché, consultar la API
+        console.log(`Consultando API para ${barcode}`);
+        const response = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+        const data = await response.json();
+
+        if (data.status === 1) {
+            // Guardar en caché para futuras consultas
+            await saveProductToCache(barcode, data.product);
+            return { product: data.product, source: 'api' };
+        } else {
+            return { product: null, source: 'api', error: 'Producto no encontrado' };
+        }
+    } catch (error) {
+        console.error('Error en fetchProductWithCache:', error);
+        return { product: null, source: 'error', error: error.message };
     }
 };
 

@@ -40,6 +40,7 @@ import { ProductDetailsModal } from '@/components/ProductDetailsModal';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { getDatabase, ref, set } from 'firebase/database';
 import { getLinkedDevices } from '@/services/firebase';
+import { fetchProductWithCache } from '@/services/cacheService';
 import { useProducts } from '@/hooks/useProducts';
 
 interface ProductData {
@@ -70,6 +71,7 @@ interface ProductData {
     };
   };
   status: number;
+  source?: 'cache' | 'api';
 }
 
 export default function ProductScanner() {
@@ -144,7 +146,7 @@ export default function ProductScanner() {
     }
   };
 
-  const updateScannedProduct = async (product: any) => {
+  const updateScannedProduct = async (product: any, source: 'cache' | 'api') => {
     // Primero cerramos el modal actual si está abierto
     if (modalVisible) {
       setModalVisible(false);
@@ -153,7 +155,8 @@ export default function ProductScanner() {
     // Actualizamos el producto y abrimos el modal con la información nutricional
     setScannedProduct({
       product: product,
-      status: 1
+      status: 1,
+      source: source // Añadir la información del origen
     });
     
     // Mostrar el modal con la información del producto
@@ -164,13 +167,19 @@ export default function ProductScanner() {
 
   const fetchProductInfo = async (barcode: string) => {
     try {
-      const response = await fetch(
-        `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
-      );
-      const data = await response.json();
+      // Usar nuestro nuevo sistema de caché local
+      const result = await fetchProductWithCache(barcode);
       
-      if (data.status === 1) {
-        return data.product;
+      if (result.product) {
+        // Si hay un mensaje indicando el origen del producto, mostrarlo brevemente
+        if (result.source === 'cache') {
+          // Producto obtenido de la caché local
+          console.log(`Producto ${barcode} recuperado de la caché local`);
+        } else {
+          // Producto obtenido de la API
+          console.log(`Producto ${barcode} recuperado de OpenFoodFacts`);
+        }
+        return { product: result.product, source: result.source };
       } else {
         Alert.alert(
           'Producto no encontrado',
@@ -210,7 +219,7 @@ export default function ProductScanner() {
 
     const response = await fetchProductInfo(data);
     if (response) {
-      await updateScannedProduct(response);
+      await updateScannedProduct(response.product, response.source);
     }
   };
 

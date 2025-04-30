@@ -8,9 +8,12 @@ import {
   Linking,
   ActivityIndicator,
   Dimensions,
+  Alert,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { clearProductCache } from '@/services/cacheService';
 
 interface NutrientInfo {
   label: string;
@@ -46,6 +49,7 @@ interface ProductData {
     };
   };
   status: number;
+  source?: 'cache' | 'api'; // Nuevo campo para indicar el origen de los datos
 }
 
 interface ProductDetailsModalProps {
@@ -57,6 +61,9 @@ interface ProductDetailsModalProps {
 
 export function ProductDetailsModal({ visible, onClose, productData, barcode }: ProductDetailsModalProps) {
   const [useEcoScoreFallback, setUseEcoScoreFallback] = useState(false);
+  const [clearCacheModalVisible, setClearCacheModalVisible] = useState(false);
+  // Estado para controlar la visibilidad temporal del bottom sheet
+  const [bottomSheetVisible, setBottomSheetVisible] = useState(true);
   
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['75%'], []);
@@ -78,6 +85,7 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
       setNutriScoreError(false);
       setEcoScoreError(false);
       setUseEcoScoreFallback(false);
+      setBottomSheetVisible(true);
     }
   }, [visible]);
   
@@ -92,10 +100,15 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
 
   // Mostrar el modal cuando sea visible
   useEffect(() => {
-    if (visible && bottomSheetRef.current) {
+    if (visible && bottomSheetRef.current && bottomSheetVisible) {
       bottomSheetRef.current.snapToIndex(0);
     }
-  }, [visible]);
+  }, [visible, bottomSheetVisible]);
+
+  // Efecto para controlar la visibilidad del bottom sheet cuando se muestra el modal de confirmación
+  useEffect(() => {
+    setBottomSheetVisible(!clearCacheModalVisible);
+  }, [clearCacheModalVisible]);
 
   if (!productData || !visible) return null;
 
@@ -210,163 +223,238 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
   
   const productImage = getProductImage();
 
+  // Función para manejar el borrado de caché
+  const handleClearCache = async () => {
+    try {
+      await clearProductCache();
+      Alert.alert(
+        'Caché borrada',
+        'La caché de productos se ha borrado correctamente',
+        [{ text: 'OK' }]
+      );
+      setClearCacheModalVisible(false);
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'No se pudo borrar la caché de productos',
+        [{ text: 'OK' }]
+      );
+      setClearCacheModalVisible(false);
+    }
+  };
+
+  // Función para mostrar el modal de confirmación y ocultar el bottom sheet
+  const showClearCacheModal = () => {
+    setClearCacheModalVisible(true);
+  };
+
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={visible ? 0 : -1}
-      snapPoints={snapPoints}
-      enablePanDownToClose
-      onClose={onClose}
-      backgroundStyle={{ backgroundColor: 'white' }}
-      handleIndicatorStyle={{ backgroundColor: '#999' }}
-    >
-      <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <Text style={styles.productName}>{productData.product.product_name}</Text>
-          {productData.product.brands && (
-            <Text style={styles.brandName}>{productData.product.brands}</Text>
-          )}
-        </View>
-
-        {productImage ? (
-          <Image 
-            source={{ uri: productImage }}
-            style={styles.productImage}
-            resizeMode="contain"
-          />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Ionicons name="image-outline" size={60} color="#ccc" />
-          </View>
-        )}
-
-        <View style={styles.barcodeContainer}>
-          <Ionicons name="barcode-outline" size={16} color="#666" />
-          <Text style={styles.barcode}>{barcode}</Text>
-        </View>
-
-        {/* NutriScore y EcoScore */}
-        <View style={styles.scoresContainer}>
-          {productData.product.nutriscore_grade && (
-            <View style={styles.scoreItem}>
-              <Text style={styles.scoreLabel}>Nutri-Score</Text>
-              <View style={styles.scoreImageContainer}>
-                {nutriScoreLoading && <ActivityIndicator size="small" color="#999" />}
-                <Image 
-                  source={{ uri: getNutriScoreImage(productData.product.nutriscore_grade) }}
-                  style={[
-                    styles.scoreImage, 
-                    { display: nutriScoreLoading ? 'none' : 'flex' }
-                  ]}
-                  onLoadStart={() => setNutriScoreLoading(true)}
-                  onLoadEnd={() => setNutriScoreLoading(false)}
-                  onError={() => {
-                    setNutriScoreLoading(false);
-                    setNutriScoreError(true);
-                  }}
-                />
-                {nutriScoreError && (
-                  <Text style={styles.scoreError}>Error al cargar Nutri-Score</Text>
-                )}
-              </View>
+    <>
+      {/* Modal para confirmar borrar caché - Fuera del BottomSheet y con estilo mejorado */}
+      <Modal
+        visible={clearCacheModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setClearCacheModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Borrar caché</Text>
+              <Ionicons name="trash-outline" size={24} color="#FF5252" />
             </View>
-          )}
-
-          {productData.product.ecoscore_grade && (
-            <View style={styles.scoreItem}>
-              <Text style={styles.scoreLabel}>Eco-Score</Text>
-              <View style={styles.scoreImageContainer}>
-                {ecoScoreLoading && <ActivityIndicator size="small" color="#999" />}
-                <Image 
-                  source={{ uri: getEcoScoreImage(productData.product.ecoscore_grade) }}
-                  style={[
-                    styles.scoreImage, 
-                    { display: ecoScoreLoading ? 'none' : 'flex' }
-                  ]}
-                  onLoadStart={() => setEcoScoreLoading(true)}
-                  onLoadEnd={() => setEcoScoreLoading(false)}
-                  onError={() => {
-                    setEcoScoreLoading(false);
-                    setEcoScoreError(true);
-                  }}
-                />
-                {ecoScoreError && !useEcoScoreFallback && (
-                  <ActivityIndicator size="small" color="#999" />
-                )}
-                {ecoScoreError && useEcoScoreFallback && (
-                  <Text style={styles.scoreError}>Error al cargar Eco-Score</Text>
-                )}
-              </View>
+            <Text style={styles.modalText}>
+              ¿Estás seguro de que quieres borrar toda la caché de productos? Esta acción no se puede deshacer.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setClearCacheModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleClearCache}
+              >
+                <Text style={styles.confirmButtonText}>Borrar</Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
-
-        {/* Ingredientes */}
-        {productData.product.ingredients_text && productData.product.ingredients_text.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ingredientes</Text>
-            <Text style={styles.ingredients}>{productData.product.ingredients_text}</Text>
-          </View>
-        )}
-
-        {/* Información nutricional */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información nutricional</Text>
-          <Text style={styles.nutritionalInfo}>Valores medios por 100g:</Text>
-
-          <View style={styles.nutrientGroup}>
-            <Text style={styles.nutrientGroupTitle}>Macronutrientes</Text>
-            {nutrients.slice(0, 9).map((nutrient, index) => (
-              <View key={index} style={[
-                styles.nutrientRow,
-                nutrient.label.startsWith('-') && styles.subNutrientRow
-              ]}>
-                <Text style={[
-                  styles.nutrientLabel,
-                  nutrient.label.startsWith('-') && styles.subNutrientLabel
-                ]}>{nutrient.label}</Text>
-                <Text style={styles.nutrientValue}>
-                  {nutrient.value.toFixed(1)} {nutrient.unit}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.nutrientGroup}>
-            <Text style={styles.nutrientGroupTitle}>Minerales</Text>
-            {nutrients.slice(9, 13).map((nutrient, index) => (
-              <View key={index} style={styles.nutrientRow}>
-                <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
-                <Text style={styles.nutrientValue}>
-                  {nutrient.value.toFixed(1)} {nutrient.unit}
-                </Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.nutrientGroup}>
-            <Text style={styles.nutrientGroupTitle}>Vitaminas</Text>
-            {nutrients.slice(13).map((nutrient, index) => (
-              <View key={index} style={styles.nutrientRow}>
-                <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
-                <Text style={styles.nutrientValue}>
-                  {nutrient.value.toFixed(1)} {nutrient.unit}
-                </Text>
-              </View>
-            ))}
           </View>
         </View>
+      </Modal>
 
-        {/* Botón para ver más detalles */}
-        <TouchableOpacity 
-          style={styles.linkButton} 
-          onPress={() => Linking.openURL(`https://world.openfoodfacts.org/product/${barcode}`)}
+      {bottomSheetVisible && (
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={visible ? 0 : -1}
+          snapPoints={snapPoints}
+          enablePanDownToClose
+          onClose={onClose}
+          backgroundStyle={{ backgroundColor: 'white' }}
+          handleIndicatorStyle={{ backgroundColor: '#999' }}
         >
-          <Text style={styles.linkButtonText}>Ver en Open Food Facts</Text>
-          <Ionicons name="open-outline" size={20} color="#6D9EBE" />
-        </TouchableOpacity>
-      </BottomSheetScrollView>
-    </BottomSheet>
+          <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>
+            <View style={styles.header}>
+              <Text style={styles.productName}>{productData.product.product_name}</Text>
+              {productData.product.brands && (
+                <Text style={styles.brandName}>{productData.product.brands}</Text>
+              )}
+              
+              {/* Indicador del origen de los datos (pulsable) */}
+              <TouchableOpacity 
+                style={styles.sourceIndicator}
+                onPress={showClearCacheModal}
+              >
+                <Ionicons 
+                  name={productData.source === 'cache' ? "save-outline" : "cloud-outline"} 
+                  size={14} 
+                  color={productData.source === 'cache' ? "#4CAF50" : "#2196F3"} 
+                />
+                <Text style={[
+                  styles.sourceText, 
+                  {color: productData.source === 'cache' ? "#4CAF50" : "#2196F3"}
+                ]}>
+                  {productData.source === 'cache' ? "Datos en caché" : "Datos de API"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {productImage ? (
+              <Image 
+                source={{ uri: productImage }}
+                style={styles.productImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="image-outline" size={60} color="#ccc" />
+              </View>
+            )}
+
+            <View style={styles.barcodeContainer}>
+              <Ionicons name="barcode-outline" size={16} color="#666" />
+              <Text style={styles.barcode}>{barcode}</Text>
+            </View>
+
+            {/* NutriScore y EcoScore */}
+            <View style={styles.scoresContainer}>
+              {productData.product.nutriscore_grade && (
+                <View style={styles.scoreItem}>
+                  <Text style={styles.scoreLabel}>Nutri-Score</Text>
+                  <View style={styles.scoreImageContainer}>
+                    {nutriScoreLoading && <ActivityIndicator size="small" color="#999" />}
+                    <Image 
+                      source={{ uri: getNutriScoreImage(productData.product.nutriscore_grade) }}
+                      style={styles.scoreImage}
+                      onLoadStart={() => setNutriScoreLoading(true)}
+                      onLoadEnd={() => setNutriScoreLoading(false)}
+                      onError={() => {
+                        setNutriScoreLoading(false);
+                        setNutriScoreError(true);
+                      }}
+                    />
+                    {nutriScoreError && (
+                      <Text style={styles.scoreError}>Error al cargar Nutri-Score</Text>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {productData.product.ecoscore_grade && (
+                <View style={styles.scoreItem}>
+                  <Text style={styles.scoreLabel}>Eco-Score</Text>
+                  <View style={styles.scoreImageContainer}>
+                    {ecoScoreLoading && <ActivityIndicator size="small" color="#999" />}
+                    <Image 
+                      source={{ uri: getEcoScoreImage(productData.product.ecoscore_grade) }}
+                      style={styles.scoreImage}
+                      onLoadStart={() => setEcoScoreLoading(true)}
+                      onLoadEnd={() => setEcoScoreLoading(false)}
+                      onError={() => {
+                        setEcoScoreLoading(false);
+                        setEcoScoreError(true);
+                      }}
+                    />
+                    {ecoScoreError && !useEcoScoreFallback && (
+                      <ActivityIndicator size="small" color="#999" />
+                    )}
+                    {ecoScoreError && useEcoScoreFallback && (
+                      <Text style={styles.scoreError}>Error al cargar Eco-Score</Text>
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Ingredientes */}
+            {productData.product.ingredients_text && productData.product.ingredients_text.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Ingredientes</Text>
+                <Text style={styles.ingredients}>{productData.product.ingredients_text}</Text>
+              </View>
+            )}
+
+            {/* Información nutricional */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Información nutricional</Text>
+              <Text style={styles.nutritionalInfo}>Valores medios por 100g:</Text>
+
+              <View style={styles.nutrientGroup}>
+                <Text style={styles.nutrientGroupTitle}>Macronutrientes</Text>
+                {nutrients.slice(0, 9).map((nutrient, index) => (
+                  <View key={index} style={[
+                    styles.nutrientRow,
+                    nutrient.label.startsWith('-') && styles.subNutrientRow
+                  ]}>
+                    <Text style={[
+                      styles.nutrientLabel,
+                      nutrient.label.startsWith('-') && styles.subNutrientLabel
+                    ]}>{nutrient.label}</Text>
+                    <Text style={styles.nutrientValue}>
+                      {nutrient.value.toFixed(1)} {nutrient.unit}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.nutrientGroup}>
+                <Text style={styles.nutrientGroupTitle}>Minerales</Text>
+                {nutrients.slice(9, 13).map((nutrient, index) => (
+                  <View key={index} style={styles.nutrientRow}>
+                    <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
+                    <Text style={styles.nutrientValue}>
+                      {nutrient.value.toFixed(1)} {nutrient.unit}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.nutrientGroup}>
+                <Text style={styles.nutrientGroupTitle}>Vitaminas</Text>
+                {nutrients.slice(13).map((nutrient, index) => (
+                  <View key={index} style={styles.nutrientRow}>
+                    <Text style={styles.nutrientLabel}>{nutrient.label}</Text>
+                    <Text style={styles.nutrientValue}>
+                      {nutrient.value.toFixed(1)} {nutrient.unit}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Botón para ver más detalles */}
+            <TouchableOpacity 
+              style={styles.linkButton} 
+              onPress={() => Linking.openURL(`https://world.openfoodfacts.org/product/${barcode}`)}
+            >
+              <Text style={styles.linkButtonText}>Ver en Open Food Facts</Text>
+              <Ionicons name="open-outline" size={20} color="#6D9EBE" />
+            </TouchableOpacity>
+          </BottomSheetScrollView>
+        </BottomSheet>
+      )}
+    </>
   );
 }
 
@@ -444,6 +532,30 @@ const styles = StyleSheet.create({
   },
   scoreItem: {
     alignItems: 'center',
+  },
+  sourceIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E1E1E8',
+  },
+  sourceText: {
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  scoreImageContainer: {
+    width: 120,
+    height: 70,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
   },
   scoreImage: {
     width: 120,
@@ -523,6 +635,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
+  ingredients: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#444',
+  },
+  nutritionalInfo: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 16,
+  },
+  scoreLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
   linkButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -540,5 +667,71 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6D9EBE',
     fontWeight: '500',
+  },
+  productName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  brandName: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContainer: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginRight: 8,
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#444',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  confirmButton: {
+    backgroundColor: '#FF5252',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    color: '#fff',
   },
 });
