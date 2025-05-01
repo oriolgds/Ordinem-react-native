@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -22,15 +23,16 @@ export default function NotificationsScreen() {
     markAsRead, 
     removeNotification,
     markAllAsRead,
+    unreadCount,
   } = useNotifications();
   const router = useRouter();
 
   // Manejar presión de notificación (navegar al detalle del producto)
   const handleNotificationPress = (notification) => {
-    if (notification.productId) {
+    if (notification.product_barcode) {
       router.push({
         pathname: '/ProductDetails',
-        params: { productId: notification.productId }
+        params: { barcode: notification.product_barcode }
       });
       
       // Marcar como leída al abrir
@@ -56,6 +58,30 @@ export default function NotificationsScreen() {
     );
   };
 
+  // Botón para marcar todas como leídas
+  const renderMarkAllAsReadButton = () => {
+    if (unreadCount === 0) return null;
+    
+    return (
+      <TouchableOpacity 
+        style={styles.markAllButton}
+        onPress={() => {
+          Alert.alert(
+            'Marcar todas como leídas',
+            '¿Quieres marcar todas las notificaciones como leídas?',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Aceptar', onPress: markAllAsRead }
+            ]
+          );
+        }}
+      >
+        <Ionicons name="checkmark-done" size={18} color="#6D9EBE" />
+        <Text style={styles.markAllText}>Marcar todas como leídas</Text>
+      </TouchableOpacity>
+    );
+  };
+
   // Indicador de carga durante la carga inicial
   if (loading && !refreshing) {
     return (
@@ -73,26 +99,29 @@ export default function NotificationsScreen() {
           <Text style={styles.emptyText}>No tienes notificaciones</Text>
         </View>
       ) : (
-        <FlatList
-          data={notifications}
-          renderItem={({ item }) => (
-            <NotificationCard 
-              notification={item}
-              onPress={handleNotificationPress}
-              onMarkRead={markAsRead}
-              onDelete={handleDeleteNotification}
-            />
-          )}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#6D9EBE']}
-            />
-          }
-        />
+        <>
+          {renderMarkAllAsReadButton()}
+          <FlatList
+            data={notifications}
+            renderItem={({ item }) => (
+              <NotificationCard 
+                notification={item}
+                onPress={handleNotificationPress}
+                onMarkRead={markAsRead}
+                onDelete={handleDeleteNotification}
+              />
+            )}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.list}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#6D9EBE']}
+              />
+            }
+          />
+        </>
       )}
     </View>
   );
@@ -123,4 +152,19 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
   },
-}); 
+  markAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    backgroundColor: '#F0F7FC',
+    borderRadius: 8,
+    margin: 16,
+    marginBottom: 0,
+  },
+  markAllText: {
+    color: '#6D9EBE',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+});

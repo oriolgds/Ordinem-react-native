@@ -12,8 +12,8 @@ import {
     getReactNativePersistence,
     signInWithCustomToken
 } from 'firebase/auth';
-import { getDatabase, ref, set, get, update } from 'firebase/database';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDatabase, ref, set, get, update, onValue } from 'firebase/database';
+import AsyncStorage from '@react-native-async-storage/async-storage;
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -333,15 +333,92 @@ export const getUserNotifications = async (userId) => {
     }
 };
 
-export const markNotificationAsRead = async (notificationId) => {
+export const markNotificationAsRead = async (notificationId, deviceId) => {
     try {
-        const userId = auth.currentUser.uid;
-        const notificationRef = ref(database, `users/${userId}/notifications/${notificationId}`);
-        await update(notificationRef, { read: true });
+        if (!deviceId) {
+            console.error('Se requiere deviceId para marcar notificación como leída');
+            return false;
+        }
+
+        const notificationRef = ref(database, `ordinem/devices/${deviceId}/notifications/${notificationId}`);
+        await update(notificationRef, { read: 1 });
         return true;
     } catch (error) {
         console.error('Error al marcar notificación como leída:', error);
         throw error;
+    }
+};
+
+export const deleteNotification = async (notificationId, deviceId) => {
+    try {
+        if (!deviceId) {
+            console.error('Se requiere deviceId para eliminar notificación');
+            return false;
+        }
+
+        const notificationRef = ref(database, `ordinem/devices/${deviceId}/notifications/${notificationId}`);
+        await set(notificationRef, null);
+        return true;
+    } catch (error) {
+        console.error('Error al eliminar notificación:', error);
+        throw error;
+    }
+};
+
+// Listener en tiempo real para notificaciones de dispositivos
+export const subscribeToDeviceNotifications = (callback) => {
+    try {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return null;
+
+        // Primero obtenemos los dispositivos vinculados al usuario
+        const userDevicesRef = ref(database, `users/${userId}/devices`);
+
+        // Listener para dispositivos del usuario
+        return onValue(userDevicesRef, async (snapshot) => {
+            if (!snapshot.exists()) {
+                callback([]);
+                return;
+            }
+
+            const deviceIds = Object.keys(snapshot.val());
+            let allNotifications = [];
+
+            // Para cada dispositivo, configuramos un listener de notificaciones
+            for (const deviceId of deviceIds) {
+                const deviceNotificationsRef = ref(database, `ordinem/devices/${deviceId}/notifications`);
+
+                // Obtenemos las notificaciones actuales del dispositivo
+                try {
+                    const notifSnapshot = await get(deviceNotificationsRef);
+                    if (notifSnapshot.exists()) {
+                        const notifObj = notifSnapshot.val();
+                        const deviceNotifications = Object.keys(notifObj).map(key => ({
+                            id: key,
+                            deviceId: deviceId, // Guardar el ID del dispositivo
+                            ...notifObj[key],
+                            // Aseguramos que read sea booleano
+                            read: notifObj[key].read === 1
+                        }));
+                        allNotifications = [...allNotifications, ...deviceNotifications];
+                    }
+                } catch (error) {
+                    console.error(`Error al obtener notificaciones del dispositivo ${deviceId}:`, error);
+                }
+            }
+
+            // Ordenar por fecha de creación (más recientes primero)
+            allNotifications.sort((a, b) => {
+                return new Date(b.created_at) - new Date(a.created_at);
+            });
+
+            callback(allNotifications);
+        }, (error) => {
+            console.error("Error en el listener de dispositivos:", error);
+        });
+    } catch (error) {
+        console.error("Error al configurar la suscripción a notificaciones:", error);
+        return null;
     }
 };
 
