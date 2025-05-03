@@ -16,13 +16,29 @@ import {
   Dimensions,
   Alert,
   Modal,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router"; // Añadir esta importación
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
 import { clearProductCache } from "@/services/cacheService";
+
+// Nuevas interfaces para el sistema de puntuación
+interface AdditiveRisk {
+  code: string;
+  name: string;
+  risk: "none" | "low" | "moderate" | "high";
+}
+
+interface ProductScore {
+  total: number; // 0-100
+  nutritional: number; // 0-60
+  additives: number; // 0-30
+  organic: number; // 0-10
+}
 
 interface NutrientInfo {
   label: string;
@@ -38,6 +54,9 @@ interface ProductData {
     nutriscore_grade?: string;
     ecoscore_grade?: string;
     ingredients_text: string;
+    additives_tags?: string[]; // Para los códigos de aditivos
+    additives_original_tags?: string[]; // Nombres originales de aditivos
+    labels_tags?: string[]; // Para detectar si es orgánico
     nutriments: {
       energy_100g: number;
       proteins_100g: number;
@@ -58,7 +77,7 @@ interface ProductData {
     };
   };
   status: number;
-  source?: "cache" | "api"; // Nuevo campo para indicar el origen de los datos
+  source?: "cache" | "api";
 }
 
 interface ProductDetailsModalProps {
@@ -68,16 +87,74 @@ interface ProductDetailsModalProps {
   barcode: string;
 }
 
+// Lista de ejemplo de aditivos comunes y su nivel de riesgo
+const ADDITIVES_RISK: Record<string, "none" | "low" | "moderate" | "high"> = {
+  // Colorantes
+  e100: "none", // Curcumina
+  e104: "moderate", // Amarillo quinoleína
+  e110: "moderate", // Amarillo ocaso FCF
+  e120: "low", // Cochinilla
+  e122: "moderate", // Azorrubina
+  e123: "high", // Amaranto
+  e124: "moderate", // Ponceau 4R
+  e127: "moderate", // Eritrosina
+  e129: "moderate", // Rojo allura AC
+  e131: "moderate", // Azul patente V
+  e132: "low", // Indigotina
+  e133: "low", // Azul brillante FCF
+  e150: "low", // Caramelo
+  e151: "moderate", // Negro brillante BN
+  e155: "moderate", // Marrón HT
+  e160: "none", // Carotenoides
+  e163: "none", // Antocianinas
+
+  // Conservantes
+  e200: "low", // Ácido sórbico
+  e202: "low", // Sorbato potásico
+  e210: "moderate", // Ácido benzoico
+  e211: "moderate", // Benzoato de sodio
+  e220: "moderate", // Dióxido de azufre
+  e250: "high", // Nitrito de sodio
+  e251: "high", // Nitrato de sodio
+
+  // Antioxidantes
+  e300: "none", // Ácido ascórbico
+  e320: "moderate", // Butilhidroxianisol (BHA)
+  e321: "high", // Butilhidroxitolueno (BHT)
+
+  // Potenciadores del sabor
+  e621: "moderate", // Glutamato monosódico
+
+  // Edulcorantes
+  e950: "low", // Acesulfamo K
+  e951: "moderate", // Aspartamo
+  e954: "moderate", // Sacarina
+  e955: "low", // Sucralosa
+
+  // Espesantes y estabilizantes
+  e407: "moderate", // Carragenanos
+  e412: "none", // Goma guar
+  e415: "none", // Goma xantana
+  e466: "low", // Carboximetilcelulosa
+
+  // Otros
+  e500: "none", // Carbonatos de sodio
+  e501: "none", // Carbonatos de potasio
+};
+
 export function ProductDetailsModal({
   visible,
   onClose,
   productData,
   barcode,
 }: ProductDetailsModalProps) {
+  const router = useRouter(); // Añadir esta línea
   const [useEcoScoreFallback, setUseEcoScoreFallback] = useState(false);
   const [clearCacheModalVisible, setClearCacheModalVisible] = useState(false);
-  // Estado para controlar la visibilidad temporal del bottom sheet
   const [bottomSheetVisible, setBottomSheetVisible] = useState(true);
+  const [productScore, setProductScore] = useState<ProductScore | null>(null);
+  const [productAdditives, setProductAdditives] = useState<AdditiveRisk[]>([]);
+  const [expandedRisk, setExpandedRisk] = useState<string | null>(null);
 
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["75%"], []);
@@ -90,9 +167,114 @@ export function ProductDetailsModal({
   const [nutriScoreError, setNutriScoreError] = useState(false);
   const [ecoScoreError, setEcoScoreError] = useState(false);
 
-  // Intentar la URL alternativa para ecoscore solo cuando cambia visible o cuando hay un error
+  // Calcular la puntuación del producto
   useEffect(() => {
-    // Reiniciar estados cuando el modal se abre
+    if (visible && productData) {
+      // Calcular puntuación basada en Nutri-Score
+      const calcNutritionalScore = () => {
+        const nutriscore = productData.product.nutriscore_grade?.toLowerCase();
+        if (!nutriscore) return 30; // Neutral si no hay datos
+
+        // Mapear letras a puntuaciones aproximadas (0-60)
+        switch (nutriscore) {
+          case "a":
+            return 60;
+          case "b":
+            return 45;
+          case "c":
+            return 30;
+          case "d":
+            return 15;
+          case "e":
+            return 0;
+          default:
+            return 30;
+        }
+      };
+
+      // Calcular puntuación de aditivos
+      const calcAdditivesScore = () => {
+        if (!productData.product.additives_tags?.length) {
+          return 30; // Puntuación máxima si no hay aditivos o no se detectan
+        }
+
+        let hasHighRisk = false;
+        let score = 30; // Comenzar con puntuación máxima
+
+        // Procesar aditivos y detectar niveles de riesgo
+        const additives: AdditiveRisk[] =
+          productData.product.additives_tags.map((additive) => {
+            // Extraer el código E (e100, e202, etc.)
+            const code = additive.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const name = additive;
+            const risk = ADDITIVES_RISK[code] || "none";
+
+            if (risk === "high") hasHighRisk = true;
+
+            // Reducir puntuación según nivel de riesgo
+            if (risk === "moderate") score -= 3;
+            else if (risk === "high") score -= 10;
+            else if (risk === "low") score -= 2;
+
+            return { code, name, risk };
+          });
+
+        setProductAdditives(additives);
+
+        // Limitar a 0 como mínimo
+        return Math.max(0, hasHighRisk ? Math.min(score, 19) : score); // Max 49/100 si hay aditivo de alto riesgo
+      };
+
+      // Calcular si es orgánico
+      const calcOrganicScore = () => {
+        const labels = productData.product.labels_tags || [];
+
+        // Buscar etiquetas orgánicas comunes
+        const isOrganic = labels.some((label) => {
+          const lowerLabel = label.toLowerCase();
+          return (
+            lowerLabel.includes("organic") ||
+            lowerLabel.includes("bio") ||
+            lowerLabel.includes("ecologic") ||
+            lowerLabel.includes("orgánico") ||
+            lowerLabel.includes("biológico") ||
+            lowerLabel.includes("ecológico") ||
+            lowerLabel.includes("organic")
+          );
+        });
+
+        return isOrganic ? 10 : 0;
+      };
+
+      // Calcular puntuación total
+      const nutritionalScore = calcNutritionalScore();
+      const additivesScore = calcAdditivesScore();
+      const organicScore = calcOrganicScore();
+
+      const totalScore = nutritionalScore + additivesScore + organicScore;
+
+      setProductScore({
+        total: totalScore,
+        nutritional: nutritionalScore,
+        additives: additivesScore,
+        organic: organicScore,
+      });
+    }
+  }, [visible, productData]);
+
+  // Agrupar aditivos por riesgo
+  const groupedAdditives: Record<string, AdditiveRisk[]> = {
+    high: [],
+    moderate: [],
+    low: [],
+    none: [],
+  };
+  productAdditives.forEach((additive) => {
+    groupedAdditives[additive.risk].push(additive);
+  });
+
+  // Resto de useEffects para manejo de modal
+  useEffect(() => {
     if (visible) {
       setNutriScoreLoading(true);
       setEcoScoreLoading(true);
@@ -103,7 +285,6 @@ export function ProductDetailsModal({
     }
   }, [visible]);
 
-  // Efecto separado para el manejo de fallback
   useEffect(() => {
     if (ecoScoreError && !useEcoScoreFallback) {
       setUseEcoScoreFallback(true);
@@ -112,19 +293,86 @@ export function ProductDetailsModal({
     }
   }, [ecoScoreError, useEcoScoreFallback]);
 
-  // Mostrar el modal cuando sea visible
   useEffect(() => {
     if (visible && bottomSheetRef.current && bottomSheetVisible) {
       bottomSheetRef.current.snapToIndex(0);
     }
   }, [visible, bottomSheetVisible]);
 
-  // Efecto para controlar la visibilidad del bottom sheet cuando se muestra el modal de confirmación
   useEffect(() => {
     setBottomSheetVisible(!clearCacheModalVisible);
   }, [clearCacheModalVisible]);
 
   if (!productData || !visible) return null;
+
+  // Obtener color según puntuación
+  const getScoreColor = (score: number): string => {
+    if (score >= 75) return "#4CAF50"; // Verde (excelente)
+    if (score >= 50) return "#8BC34A"; // Verde claro (bueno)
+    if (score >= 25) return "#FF9800"; // Naranja (medio)
+    return "#F44336"; // Rojo (malo)
+  };
+
+  // Obtener calificación según puntuación
+  const getScoreRating = (score: number): string => {
+    if (score >= 75) return "Excelente";
+    if (score >= 50) return "Bueno";
+    if (score >= 25) return "Regular";
+    return "Malo";
+  };
+
+  // Obtener color según riesgo de aditivo
+  const getAdditiveRiskColor = (risk: string): string => {
+    switch (risk) {
+      case "high":
+        return "#F44336"; // Rojo
+      case "moderate":
+        return "#FF9800"; // Naranja
+      case "low":
+        return "#FFEB3B"; // Amarillo
+      default:
+        return "#4CAF50"; // Verde
+    }
+  };
+
+  // Obtener texto según riesgo de aditivo
+  const getAdditiveRiskText = (risk: string): string => {
+    switch (risk) {
+      case "high":
+        return "Riesgo alto";
+      case "moderate":
+        return "Riesgo moderado";
+      case "low":
+        return "Riesgo bajo";
+      default:
+        return "Sin riesgo";
+    }
+  };
+
+  // Nueva función para obtener el nombre de la función del aditivo
+  const getAdditiveFunctionName = (code: string): string => {
+    // Convertimos a minúsculas y eliminamos el posible prefijo "en:"
+    const cleanCode = code.toLowerCase().replace(/^en:/, "");
+
+    // Determinamos la función según el rango de códigos E
+    if (cleanCode.match(/^e?1\d\d$/)) {
+      return "Colorante";
+    } else if (cleanCode.match(/^e?2\d\d$/)) {
+      return "Conservante";
+    } else if (cleanCode.match(/^e?3\d\d$/)) {
+      return "Antioxidante";
+    } else if (cleanCode.match(/^e?4\d\d$/)) {
+      return "Estabilizante/Espesante";
+    } else if (cleanCode.match(/^e?5\d\d$/)) {
+      return "Regulador de acidez";
+    } else if (cleanCode.match(/^e?6\d\d$/)) {
+      return "Potenciador del sabor";
+    } else if (cleanCode.match(/^e?9\d\d$/)) {
+      return "Edulcorante";
+    } else {
+      return "Aditivo";
+    }
+  };
 
   const getNutriScoreImage = (grade: string) => {
     const nutriscore = grade?.toLowerCase() || "unknown";
@@ -138,6 +386,7 @@ export function ProductDetailsModal({
       : `https://static.openfoodfacts.org/images/attributes/ecoscore-${ecoscore}.png`;
   };
 
+  // Resto del código para nutrientes y funciones auxiliares
   const nutrients: NutrientInfo[] = [
     {
       label: "Valor energético",
@@ -228,7 +477,6 @@ export function ProductDetailsModal({
     }
 
     if (barcode) {
-      // Formato correcto según la documentación de OpenFoodFacts API v2
       return `https://images.openfoodfacts.org/images/products/${barcode}/front_es.400.jpg`;
     }
 
@@ -237,7 +485,6 @@ export function ProductDetailsModal({
 
   const productImage = getProductImage();
 
-  // Función para manejar el borrado de caché
   const handleClearCache = async () => {
     try {
       await clearProductCache();
@@ -255,7 +502,6 @@ export function ProductDetailsModal({
     }
   };
 
-  // Función para mostrar el modal de confirmación y ocultar el bottom sheet
   const showClearCacheModal = () => {
     setClearCacheModalVisible(true);
   };
@@ -320,11 +566,13 @@ export function ProductDetailsModal({
             </View>
 
             {productImage ? (
-              <Image
-                source={{ uri: productImage }}
-                style={styles.productImage}
-                resizeMode="contain"
-              />
+              <View style={styles.imageContainer}>
+                <Image
+                  source={{ uri: productImage }}
+                  style={styles.productImage}
+                  resizeMode="contain"
+                />
+              </View>
             ) : (
               <View style={styles.imagePlaceholder}>
                 <Ionicons name="image-outline" size={60} color="#ccc" />
@@ -335,6 +583,94 @@ export function ProductDetailsModal({
               <Ionicons name="barcode-outline" size={16} color="#666" />
               <Text style={styles.barcode}>{barcode}</Text>
             </View>
+
+            {/* Sección de aditivos - Reposicionada para darle más importancia */}
+            {productData?.product?.additives_tags &&
+              productData.product.additives_tags.length > 0 && (
+                <View style={styles.additivesSection}>
+                  <Text style={styles.sectionTitle}>Aditivos</Text>
+                  <Text style={styles.additivesCount}>
+                    {productData.product.additives_tags.length} aditivos
+                    detectados
+                  </Text>
+
+                  {/* Lista de todos los aditivos */}
+                  <View style={styles.additivesList}>
+                    {productData.product.additives_tags.map(
+                      (additive, index) => {
+                        // Extraer el código (e100, etc.)
+                        const code = additive.replace(/^en:/, "").toUpperCase();
+                        const risk =
+                          ADDITIVES_RISK[
+                            additive.replace(/^en:/, "").toLowerCase()
+                          ] || "none";
+
+                        return (
+                          <View key={index} style={styles.additiveItemRow}>
+                            <View
+                              style={[
+                                styles.additiveRiskIndicator,
+                                { backgroundColor: getAdditiveRiskColor(risk) },
+                              ]}
+                            />
+                            <View style={styles.additiveDetails}>
+                              <Text style={styles.additiveCode}>{code}</Text>
+                              <Text style={styles.additiveFunction}>
+                                {getAdditiveFunctionName(code)}
+                              </Text>
+                            </View>
+                            <View style={styles.additiveRiskContainer}>
+                              <Text
+                                style={[
+                                  styles.additiveRiskText,
+                                  { color: getAdditiveRiskColor(risk) },
+                                ]}
+                              >
+                                {getAdditiveRiskText(risk)}
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      }
+                    )}
+                  </View>
+
+                  {/* Añadir botón para más información */}
+                  <TouchableOpacity
+                    style={styles.moreInfoButton}
+                    onPress={() => router.push("/additives-info")}
+                  >
+                    <Text style={styles.moreInfoButtonText}>
+                      Más información sobre aditivos y puntuación
+                    </Text>
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={20}
+                      color="#6D9EBE"
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+            {/* Puntuación general del producto (solo círculo y texto, sin desglose) */}
+            {productScore && (
+              <View style={styles.productScoreContainer}>
+                <Text style={styles.sectionTitle}>Evaluación del producto</Text>
+                <View style={styles.scoreCircleContainer}>
+                  <View
+                    style={[
+                      styles.scoreCircle,
+                      { backgroundColor: getScoreColor(productScore.total) },
+                    ]}
+                  >
+                    <Text style={styles.scoreValue}>{productScore.total}</Text>
+                  </View>
+                  <Text style={styles.scoreRating}>
+                    {getScoreRating(productScore.total)}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* NutriScore y EcoScore */}
             <View style={styles.scoresContainer}>
@@ -527,16 +863,20 @@ const styles = StyleSheet.create({
   contentContainer: {
     backgroundColor: "#fff",
   },
-  productImage: {
-    width: "100%",
-    height: 300,
+  imageContainer: {
+    padding: 12,
     backgroundColor: "#f5f5f5",
     borderRadius: 12,
     marginBottom: 16,
+    alignItems: "center",
+  },
+  productImage: {
+    width: "100%",
+    height: 240,
+    resizeMode: "contain",
   },
   imagePlaceholder: {
-    width: "100%",
-    height: 200,
+    padding: 30,
     backgroundColor: "#f5f5f5",
     justifyContent: "center",
     alignItems: "center",
@@ -751,5 +1091,127 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: 16,
     color: "#fff",
+  },
+  // Nuevos estilos para la puntuación del producto
+  productScoreContainer: {
+    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+    alignItems: "center",
+  },
+  scoreCircleContainer: {
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  scoreCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  scoreValue: {
+    color: "white",
+    fontSize: 24,
+    fontWeight: "bold",
+  },
+  scoreRating: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+
+  // Nuevos estilos para la sección de aditivos
+  additivesSection: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  additivesCount: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 16,
+  },
+  additivesList: {
+    marginBottom: 16,
+  },
+  additiveItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  additiveRiskIndicator: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  additiveDetails: {
+    flex: 1,
+  },
+  additiveCode: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#333",
+  },
+  additiveFunction: {
+    fontSize: 14,
+    color: "#666",
+  },
+  additiveRiskContainer: {
+    alignItems: "flex-end",
+  },
+  additiveRiskText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  riskLegend: {
+    marginTop: 16,
+  },
+  legendTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  legendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  legendIndicator: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  legendText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  moreInfoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "#f8f8f8",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    gap: 8,
+  },
+  moreInfoButtonText: {
+    fontSize: 15,
+    color: "#6D9EBE",
+    fontWeight: "500",
   },
 });
