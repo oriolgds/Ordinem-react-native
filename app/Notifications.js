@@ -5,87 +5,62 @@ import {
     StyleSheet,
     FlatList,
     TouchableOpacity,
-    ActivityIndicator,
-    RefreshControl
+    ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
-import { getUserNotifications, markNotificationAsRead } from '../services/firebase';
+import { subscribeToDeviceNotifications, markNotificationAsRead } from '../services/firebase';
 import { useNavigation } from '@react-navigation/native';
 
 const Notifications = () => {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const auth = getAuth();
     const navigation = useNavigation();
 
-    // Cargar notificaciones al montar el componente
+    // Configurar el listener en tiempo real para notificaciones
     useEffect(() => {
-        loadNotifications();
-    }, []);
+        let unsubscribe = null;
 
-    // Función para cargar notificaciones
-    const loadNotifications = async () => {
-        try {
-            setLoading(true);
+        const setupNotificationsListener = async () => {
             const currentUser = auth.currentUser;
-
             if (!currentUser) {
                 setLoading(false);
                 return;
             }
 
-            // Obtener notificaciones del usuario
-            const userNotifications = await getUserNotifications(currentUser.uid);
+            // Suscribirse a notificaciones en tiempo real
+            unsubscribe = subscribeToDeviceNotifications((newNotifications) => {
+                // Actualizar el estado con las nuevas notificaciones
+                setNotifications(newNotifications);
+                setLoading(false);
+            });
+        };
 
-            if (userNotifications) {
-                // Transformar el objeto de notificaciones en un array
-                const notificationsArray = Object.keys(userNotifications).map(notificationId => ({
-                    id: notificationId,
-                    ...userNotifications[notificationId]
-                }));
+        setupNotificationsListener();
 
-                // Ordenar por fecha de creación (más recientes primero)
-                notificationsArray.sort((a, b) => b.created_at - a.created_at);
-
-                setNotifications(notificationsArray);
-            } else {
-                setNotifications([]);
-            }
-        } catch (error) {
-            console.error('Error al cargar notificaciones:', error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
-
-    // Función para refrescar la lista
-    const onRefresh = () => {
-        setRefreshing(true);
-        loadNotifications();
-    };
+        // Limpiar el listener cuando se desmonte el componente
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
+    }, []);
 
     // Función para marcar como leída una notificación
     const handleNotificationPress = async (notification) => {
         try {
             if (!notification.read) {
-                await markNotificationAsRead(auth.currentUser.uid, notification.id);
+                // Asegurar que se pasa el deviceId correcto
+                await markNotificationAsRead(notification.id, notification.deviceId);
 
-                // Actualizar el estado local
-                setNotifications(prevNotifications =>
-                    prevNotifications.map(item =>
-                        item.id === notification.id ? { ...item, read: true } : item
-                    )
-                );
+                // No necesitamos actualizar el estado manualmente
+                // El listener en tiempo real actualizará el estado automáticamente
             }
 
             // Si la notificación tiene un producto asociado, navegar a los detalles
             if (notification.product_barcode) {
-                // Aquí habría que obtener los datos del producto y navegar a la pantalla de detalles
-                // Por simplicidad, mostraremos un mensaje
-                alert(`Navegando a producto con código: ${notification.product_barcode}`);
+                navigation.navigate('ProductDetails', {
+                    barcode: notification.product_barcode
+                });
             }
         } catch (error) {
             console.error('Error al marcar notificación como leída:', error);
@@ -153,7 +128,7 @@ const Notifications = () => {
 
     return (
         <View style={styles.container}>
-            {loading && !refreshing ? (
+            {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#6D9EBE" />
                     <Text style={styles.loadingText}>Cargando notificaciones...</Text>
@@ -164,13 +139,6 @@ const Notifications = () => {
                     keyExtractor={(item) => item.id}
                     renderItem={renderNotification}
                     contentContainerStyle={styles.listContainer}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                            colors={['#6D9EBE']}
-                        />
-                    }
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Ionicons name="notifications-off-outline" size={60} color="#ccc" />
@@ -266,4 +234,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Notifications; 
+export default Notifications;

@@ -12,7 +12,7 @@ import {
     getReactNativePersistence,
     signInWithCustomToken
 } from 'firebase/auth';
-import { getDatabase, ref, set, get, update } from 'firebase/database';
+import { getDatabase, ref, set, get, update, onValue } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuración de Firebase
@@ -333,16 +333,136 @@ export const getUserNotifications = async (userId) => {
     }
 };
 
-export const markNotificationAsRead = async (notificationId) => {
+export const markNotificationAsRead = async (notificationId, deviceId) => {
     try {
-        const userId = auth.currentUser.uid;
-        const notificationRef = ref(database, `users/${userId}/notifications/${notificationId}`);
-        await update(notificationRef, { read: true });
+        if (!deviceId) {
+            console.error('Se requiere deviceId para marcar notificación como leída');
+            return false;
+        }
+
+        const notificationRef = ref(database, `ordinem/devices/${deviceId}/notifications/${notificationId}`);
+        await update(notificationRef, { read: 1 });
         return true;
     } catch (error) {
         console.error('Error al marcar notificación como leída:', error);
         throw error;
     }
+};
+
+export const deleteNotification = async (notificationId, deviceId) => {
+    try {
+        if (!deviceId) {
+            console.error('Se requiere deviceId para eliminar notificación');
+            return false;
+        }
+
+        const notificationRef = ref(database, `ordinem/devices/${deviceId}/notifications/${notificationId}`);
+        await set(notificationRef, null);
+        return true;
+    } catch (error) {
+        console.error('Error al eliminar notificación:', error);
+        throw error;
+    }
+};
+
+// Listener en tiempo real para notificaciones de dispositivos
+export const subscribeToDeviceNotifications = (callback) => {
+    try {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return null;
+
+        // Referencia a los dispositivos del usuario
+        const userDevicesRef = ref(database, `users/${userId}/devices`);
+
+        // Array para almacenar los listeners de los dispositivos (para poder limpiarlos)
+        const deviceListeners = [];
+
+        // Listener para cambios en la lista de dispositivos vinculados
+        const devicesListener = onValue(userDevicesRef, (snapshot) => {
+            if (!snapshot.exists()) {
+                callback([]);
+                return;
+            }
+
+            // Limpiar listeners anteriores de dispositivos
+            deviceListeners.forEach(unsubscribe => unsubscribe());
+            deviceListeners.length = 0;
+
+            // Obtener IDs de dispositivos
+            const deviceIds = Object.keys(snapshot.val());
+
+            // Si no hay dispositivos, retornar array vacío
+            if (deviceIds.length === 0) {
+                callback([]);
+                return;
+            }
+
+            // Configurar listeners para cada dispositivo
+            deviceIds.forEach(deviceId => {
+                const deviceNotificationsRef = ref(database, `ordinem/devices/${deviceId}/notifications`);
+
+                // Crear un listener para este dispositivo específico
+                const deviceListener = onValue(deviceNotificationsRef, (notifSnapshot) => {
+                    console.log(`Cambios detectados en las notificaciones del dispositivo: ${deviceId}`);
+
+                    // Recopilar todas las notificaciones de todos los dispositivos
+                    getAllNotificationsFromDevices(deviceIds).then(allNotifications => {
+                        // Ordenar por fecha de creación (más recientes primero)
+                        allNotifications.sort((a, b) => {
+                            return new Date(b.created_at) - new Date(a.created_at);
+                        });
+
+                        // Enviar las notificaciones actualizadas a través del callback
+                        callback(allNotifications);
+                    });
+                }, (error) => {
+                    console.error(`Error en el listener de notificaciones para dispositivo ${deviceId}:`, error);
+                });
+
+                // Guardar la función para cancelar este listener específico
+                deviceListeners.push(deviceListener);
+            });
+        }, (error) => {
+            console.error("Error en el listener de dispositivos:", error);
+        });
+
+        // Devolver una función que cancela todos los listeners
+        return () => {
+            console.log("Cancelando todos los listeners de notificaciones");
+            devicesListener();
+            deviceListeners.forEach(unsubscribe => unsubscribe());
+        };
+    } catch (error) {
+        console.error("Error al configurar la suscripción a notificaciones:", error);
+        return null;
+    }
+};
+
+// Función auxiliar para obtener todas las notificaciones
+const getAllNotificationsFromDevices = async (deviceIds) => {
+    let allNotifications = [];
+
+    for (const deviceId of deviceIds) {
+        const deviceNotificationsRef = ref(database, `ordinem/devices/${deviceId}/notifications`);
+
+        try {
+            const notifSnapshot = await get(deviceNotificationsRef);
+            if (notifSnapshot.exists()) {
+                const notifObj = notifSnapshot.val();
+                const deviceNotifications = Object.keys(notifObj).map(key => ({
+                    id: key,
+                    deviceId: deviceId,
+                    ...notifObj[key],
+                    read: notifObj[key].read === 1
+                }));
+                allNotifications = [...allNotifications, ...deviceNotifications];
+            }
+        } catch (error) {
+            console.error(`Error al obtener notificaciones del dispositivo ${deviceId}:`, error);
+        }
+    }
+
+    return allNotifications;
 };
 
 // Productos
@@ -447,7 +567,7 @@ export const getNotifications = async () => {
     }
 };
 
-export const deleteNotification = async (notificationId) => {
+export const deleteUserNotification = async (notificationId) => {
     try {
         const userId = auth.currentUser.uid;
         const notificationRef = ref(database, `users/${userId}/notifications/${notificationId}`);
