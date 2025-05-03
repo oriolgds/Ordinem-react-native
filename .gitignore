@@ -9,5 +9,6 @@ node_modules
 .expo/devices.json
 
 # Añadir carpetas nativas para usar correctamente Prebuild/CNG
-/android
-/ios
+# Comentamos temporalmente estas líneas para la compilación
+#/android
+#/ios
