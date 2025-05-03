@@ -352,6 +352,7 @@ export function ProductDetailsModal({
                         ),
                       }}
                       style={styles.scoreImage}
+                      resizeMode="contain"
                       onLoadStart={() => setNutriScoreLoading(true)}
                       onLoadEnd={() => setNutriScoreLoading(false)}
                       onError={() => {
@@ -568,15 +569,16 @@ const styles = StyleSheet.create({
   },
   scoreImageContainer: {
     width: 120,
-    height: 85, // Aumentar altura para acomodar la imagen completa
+    height: 85, // Igual para ambos scores
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
   },
   scoreImage: {
     width: 120,
-    height: 80, // Aumentar altura para mostrar la imagen completa
+    height: 80, // Igual para ambos scores
     marginBottom: 10,
+    resizeMode: "contain",
   },
   scoreLoader: {
     position: "absolute",
