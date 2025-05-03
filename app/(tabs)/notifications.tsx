@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationCard } from "@/components/NotificationCard";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function NotificationsScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -42,25 +43,8 @@ export default function NotificationsScreen() {
     }
   };
 
-  // Manejar eliminación de notificación
-  const handleDeleteNotification = (notificationId) => {
-    Alert.alert(
-      "Eliminar notificación",
-      "¿Estás seguro de que deseas eliminar esta notificación?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: () => removeNotification(notificationId),
-        },
-      ]
-    );
-  };
-
-  // Efecto para controlar mejor la transición a pantalla vacía
+  // Efecto para controlar la transición a pantalla vacía
   useEffect(() => {
-    // Si terminamos la eliminación y no hay notificaciones, mostrar pantalla vacía
     if (!loading && notifications.length === 0) {
       setShowEmpty(true);
     } else {
@@ -68,13 +52,13 @@ export default function NotificationsScreen() {
     }
   }, [loading, notifications.length]);
 
-  // Botón para marcar todas como leídas
+  // Botón para marcar todas como leídas (solo visible si hay notificaciones sin leer)
   const renderMarkAllAsReadButton = () => {
     if (unreadCount === 0) return null;
 
     return (
       <TouchableOpacity
-        style={styles.markAllButton}
+        style={styles.actionChip}
         onPress={() => {
           Alert.alert(
             "Marcar todas como leídas",
@@ -87,18 +71,18 @@ export default function NotificationsScreen() {
         }}
       >
         <Ionicons name="checkmark-done" size={18} color="#6D9EBE" />
-        <Text style={styles.markAllText}>Marcar todas como leídas</Text>
+        <Text style={styles.chipText}>Marcar todas como leídas</Text>
       </TouchableOpacity>
     );
   };
 
-  // Botón para eliminar todas las notificaciones
+  // Botón para eliminar todas (solo visible si hay notificaciones)
   const renderDeleteAllButton = () => {
     if (notifications.length === 0 || isDeleting) return null;
 
     return (
       <TouchableOpacity
-        style={[styles.markAllButton, styles.deleteAllButton]}
+        style={[styles.actionChip, styles.deleteChip]}
         onPress={() => {
           Alert.alert(
             "Eliminar todas las notificaciones",
@@ -111,7 +95,6 @@ export default function NotificationsScreen() {
                 onPress: async () => {
                   setIsDeleting(true);
                   try {
-                    // Forzar inmediatamente la UI vacía para mejor UX
                     setShowEmpty(true);
                     await removeAllNotifications();
                   } catch (error) {
@@ -122,7 +105,7 @@ export default function NotificationsScreen() {
                     setShowEmpty(false);
                     Alert.alert(
                       "Error",
-                      "No se pudieron eliminar todas las notificaciones. Inténtalo de nuevo."
+                      "No se pudieron eliminar todas las notificaciones."
                     );
                   } finally {
                     setIsDeleting(false);
@@ -134,9 +117,7 @@ export default function NotificationsScreen() {
         }}
       >
         <Ionicons name="trash-outline" size={18} color="#FF5252" />
-        <Text style={styles.deleteAllText}>
-          Eliminar todas las notificaciones
-        </Text>
+        <Text style={[styles.chipText, styles.deleteText]}>Eliminar todas</Text>
       </TouchableOpacity>
     );
   };
@@ -161,34 +142,48 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {notifications.length === 0 || showEmpty ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-off-outline" size={64} color="#CCC" />
-          <Text style={styles.emptyText}>No tienes notificaciones</Text>
-        </View>
-      ) : (
-        <>
-          <View style={styles.actionButtons}>
-            {renderMarkAllAsReadButton()}
-            {renderDeleteAllButton()}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        {/* Encabezado con instrucciones de gestos */}
+        {notifications.length > 0 && !showEmpty && (
+          <View style={styles.gestureHintContainer}>
+            <View style={styles.gestureHint}>
+              <Ionicons name="swap-horizontal" size={16} color="#999" />
+              <Text style={styles.hintText}>Desliza para acciones</Text>
+            </View>
           </View>
-          <FlatList
-            data={notifications}
-            renderItem={({ item }) => (
-              <NotificationCard
-                notification={item}
-                onPress={handleNotificationPress}
-                onMarkRead={markAsRead}
-                onDelete={handleDeleteNotification}
-              />
-            )}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.list}
-          />
-        </>
-      )}
-    </View>
+        )}
+
+        {notifications.length === 0 || showEmpty ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="notifications-off-outline" size={64} color="#CCC" />
+            <Text style={styles.emptyText}>No tienes notificaciones</Text>
+          </View>
+        ) : (
+          <>
+            {/* Chips de acciones rápidas */}
+            <View style={styles.chipsContainer}>
+              {renderMarkAllAsReadButton()}
+              {renderDeleteAllButton()}
+            </View>
+
+            <FlatList
+              data={notifications}
+              renderItem={({ item }) => (
+                <NotificationCard
+                  notification={item}
+                  onPress={handleNotificationPress}
+                  onMarkRead={markAsRead}
+                  onDelete={removeNotification}
+                />
+              )}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.list}
+            />
+          </>
+        )}
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -216,39 +211,55 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+    paddingTop: 8,
   },
-  markAllButton: {
+  chipsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  actionChip: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    padding: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: "#F0F7FC",
-    borderRadius: 8,
-    margin: 16,
-    marginBottom: 0,
+    borderRadius: 20,
   },
-  markAllText: {
+  chipText: {
     color: "#6D9EBE",
     fontWeight: "600",
-    marginLeft: 8,
+    marginLeft: 6,
+    fontSize: 13,
   },
-  actionButtons: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    gap: 8, // Espacio entre los botones
-  },
-  deleteAllButton: {
+  deleteChip: {
     backgroundColor: "#FFEFEF",
   },
-  deleteAllText: {
+  deleteText: {
     color: "#FF5252",
-    fontWeight: "600",
-    marginLeft: 8,
   },
   loadingText: {
     color: "#666",
     marginTop: 12,
     fontSize: 16,
+  },
+  gestureHintContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  gestureHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  hintText: {
+    fontSize: 12,
+    color: "#999",
   },
 });
