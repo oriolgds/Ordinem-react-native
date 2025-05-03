@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   subscribeToDeviceNotifications,
   markNotificationAsRead,
@@ -25,13 +25,18 @@ export function useNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const unsubscribeRef = useRef<() => void | null>(null);
 
   // Configurar el listener de notificaciones en tiempo real
   useEffect(() => {
     setLoading(true);
+    console.log("Configurando listener de notificaciones...");
 
     // Iniciar la suscripción a notificaciones
     const unsubscribe = subscribeToDeviceNotifications((newNotifications) => {
+      console.log(
+        `Recibidas ${newNotifications.length} notificaciones en tiempo real`
+      );
       setNotifications(newNotifications);
 
       // Actualizar contador de notificaciones no leídas
@@ -45,9 +50,15 @@ export function useNotifications() {
       setRefreshing(false);
     });
 
+    // Guardar la función para cancelar listener
+    unsubscribeRef.current = unsubscribe;
+
     // Limpiar el listener cuando el componente se desmonte
     return () => {
-      if (unsubscribe) unsubscribe();
+      console.log("Limpiando listener de notificaciones");
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
     };
   }, []);
 
@@ -78,19 +89,53 @@ export function useNotifications() {
     }
   };
 
-  // Eliminar notificación
+  // Eliminar notificación - Verificar implementación
   const removeNotification = async (notificationId: string) => {
     try {
       // Encontrar la notificación y su deviceId
       const notification = notifications.find((n) => n.id === notificationId);
       if (!notification) return false;
 
+      console.log(
+        `Eliminando notificación ${notificationId} del dispositivo ${notification.deviceId}`
+      );
+
+      // Asegurar que se pasa correctamente el deviceId
       await deleteNotification(notificationId, notification.deviceId);
 
       // La actualización del estado se hará automáticamente a través del listener
       return true;
     } catch (error) {
       console.error("Error al eliminar notificación:", error);
+      return false;
+    }
+  };
+
+  // Añadir función para eliminar todas las notificaciones
+  const removeAllNotifications = async () => {
+    try {
+      if (notifications.length === 0) return true;
+
+      console.log(`Eliminando ${notifications.length} notificaciones...`);
+
+      // Crear un array de promesas para eliminar cada notificación
+      const promises = notifications.map((notification) => {
+        console.log(
+          `Preparando eliminación de notificación ${notification.id} del dispositivo ${notification.deviceId}`
+        );
+        return deleteNotification(notification.id, notification.deviceId);
+      });
+
+      // Ejecutar todas las promesas
+      await Promise.all(promises);
+      console.log("Todas las notificaciones eliminadas correctamente");
+
+      // Ya no necesitamos actualizar el estado manualmente,
+      // el listener detectará los cambios automáticamente
+
+      return true;
+    } catch (error) {
+      console.error("Error al eliminar todas las notificaciones:", error);
       return false;
     }
   };
@@ -127,5 +172,6 @@ export function useNotifications() {
     markAsRead,
     removeNotification,
     markAllAsRead,
+    removeAllNotifications,
   };
 }
