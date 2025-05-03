@@ -53,10 +53,15 @@ export function NotificationCard({
   const renderRightActions = () => {
     return (
       <View style={styles.actionsContainer}>
-        {/* Solo mostrar "Marcar como leída" si no está leída */}
+        {/* Separador invisible entre la card y el primer botón */}
+        <View style={styles.actionOuterSpacing} />
         {!notification.read && (
           <TouchableOpacity
-            style={[styles.actionButton, styles.readButton]}
+            style={[
+              styles.actionButton,
+              styles.readButton,
+              styles.actionButtonSpacing,
+            ]}
             onPress={() => {
               swipeableRef.current?.close();
               onMarkRead(notification.id);
@@ -66,7 +71,6 @@ export function NotificationCard({
             <Text style={styles.actionText}>Leída</Text>
           </TouchableOpacity>
         )}
-
         <TouchableOpacity
           style={[styles.actionButton, styles.deleteButton]}
           onPress={() => {
@@ -77,6 +81,8 @@ export function NotificationCard({
           <Ionicons name="trash" size={20} color="#FFF" />
           <Text style={styles.actionText}>Eliminar</Text>
         </TouchableOpacity>
+        {/* Separador invisible al final para simetría */}
+        <View style={styles.actionOuterSpacing} />
       </View>
     );
   };
@@ -176,18 +182,24 @@ const styles = StyleSheet.create({
   // Estilos mejorados para los botones de acción (estilo iOS/Cupertino)
   actionsContainer: {
     flexDirection: "row",
-    alignItems: "stretch", // Asegura que los botones ocupen toda la altura
-    height: "100%", // Ocupa toda la altura de la tarjeta
+    alignItems: "stretch",
+    height: "100%",
+    backgroundColor: "transparent",
+  },
+  actionOuterSpacing: {
+    width: 8, // Separación entre la card y el primer botón (y al final)
   },
   actionButton: {
     width: 80,
-    justifyContent: "center", // Centra el contenido verticalmente
+    justifyContent: "center",
     alignItems: "center",
-    borderRadius: 12, // Mismo radio de borde que la tarjeta
+    borderRadius: 12,
+  },
+  actionButtonSpacing: {
+    marginRight: 2, // Separación mínima entre botones
   },
   readButton: {
     backgroundColor: "#64D2FF",
-    marginRight: 4, // Separación entre botones estilo iOS
   },
   deleteButton: {
     backgroundColor: "#FF3B30",
