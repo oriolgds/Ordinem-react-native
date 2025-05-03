@@ -12,7 +12,9 @@
     "lint": "expo lint",
     "clean": "expo prebuild --clean",
     "build:android": "eas build --platform android --profile production",
-    "build:android-local": "eas build --platform android --profile production --local"
+    "build:android-local": "eas build --platform android --profile production --local",
+    "workflow:run": "npx eas-cli workflow:run",
+    "workflow:android": "npx eas-cli workflow:run .eas/workflows/android-build.yml"
   },
   "jest": {
     "preset": "jest-expo"
@@ -71,5 +73,16 @@
     "react-test-renderer": "18.3.1",
     "typescript": "^5.3.3"
   },
-  "private": true
+  "private": true,
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "expo-barcode-scanner",
+          "firebase"
+        ],
+        "listUnknownPackages": false
+      }
+    }
+  }
 }
