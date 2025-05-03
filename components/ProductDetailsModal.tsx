@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import React, {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
 import {
   View,
   Text,
@@ -10,10 +16,13 @@ import {
   Dimensions,
   Alert,
   Modal,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
-import { clearProductCache } from '@/services/cacheService';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import BottomSheet, {
+  BottomSheetScrollView,
+  BottomSheetBackdrop,
+} from "@gorhom/bottom-sheet";
+import { clearProductCache } from "@/services/cacheService";
 
 interface NutrientInfo {
   label: string;
@@ -49,7 +58,7 @@ interface ProductData {
     };
   };
   status: number;
-  source?: 'cache' | 'api'; // Nuevo campo para indicar el origen de los datos
+  source?: "cache" | "api"; // Nuevo campo para indicar el origen de los datos
 }
 
 interface ProductDetailsModalProps {
@@ -59,23 +68,28 @@ interface ProductDetailsModalProps {
   barcode: string;
 }
 
-export function ProductDetailsModal({ visible, onClose, productData, barcode }: ProductDetailsModalProps) {
+export function ProductDetailsModal({
+  visible,
+  onClose,
+  productData,
+  barcode,
+}: ProductDetailsModalProps) {
   const [useEcoScoreFallback, setUseEcoScoreFallback] = useState(false);
   const [clearCacheModalVisible, setClearCacheModalVisible] = useState(false);
   // Estado para controlar la visibilidad temporal del bottom sheet
   const [bottomSheetVisible, setBottomSheetVisible] = useState(true);
-  
+
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['75%'], []);
-  
+  const snapPoints = useMemo(() => ["75%"], []);
+
   // Estado para seguir el estado de carga de las imágenes de score
   const [nutriScoreLoading, setNutriScoreLoading] = useState(true);
   const [ecoScoreLoading, setEcoScoreLoading] = useState(true);
-  
+
   // Estado para manejar errores de carga
   const [nutriScoreError, setNutriScoreError] = useState(false);
   const [ecoScoreError, setEcoScoreError] = useState(false);
-  
+
   // Intentar la URL alternativa para ecoscore solo cuando cambia visible o cuando hay un error
   useEffect(() => {
     // Reiniciar estados cuando el modal se abre
@@ -88,7 +102,7 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
       setBottomSheetVisible(true);
     }
   }, [visible]);
-  
+
   // Efecto separado para el manejo de fallback
   useEffect(() => {
     if (ecoScoreError && !useEcoScoreFallback) {
@@ -113,97 +127,97 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
   if (!productData || !visible) return null;
 
   const getNutriScoreImage = (grade: string) => {
-    const nutriscore = grade?.toLowerCase() || 'unknown';
+    const nutriscore = grade?.toLowerCase() || "unknown";
     return `https://static.openfoodfacts.org/images/misc/nutriscore-${nutriscore}.png`;
   };
 
   const getEcoScoreImage = (grade: string) => {
-    const ecoscore = grade?.toLowerCase() || 'unknown';
-    return useEcoScoreFallback 
+    const ecoscore = grade?.toLowerCase() || "unknown";
+    return useEcoScoreFallback
       ? `https://static.openfoodfacts.org/images/misc/ecoscore-${ecoscore}.png`
       : `https://static.openfoodfacts.org/images/attributes/ecoscore-${ecoscore}.png`;
   };
 
   const nutrients: NutrientInfo[] = [
     {
-      label: 'Valor energético',
+      label: "Valor energético",
       value: productData.product.nutriments.energy_100g || 0,
-      unit: 'kcal',
+      unit: "kcal",
     },
     {
-      label: 'Grasas',
+      label: "Grasas",
       value: productData.product.nutriments.fat_100g || 0,
-      unit: 'g',
+      unit: "g",
     },
     {
-      label: '- Saturadas',
+      label: "- Saturadas",
       value: productData.product.nutriments.saturated_fat_100g || 0,
-      unit: 'g',
+      unit: "g",
     },
     {
-      label: '- Trans',
+      label: "- Trans",
       value: productData.product.nutriments.trans_fat_100g || 0,
-      unit: 'g',
+      unit: "g",
     },
     {
-      label: 'Colesterol',
+      label: "Colesterol",
       value: productData.product.nutriments.cholesterol_100g || 0,
-      unit: 'mg',
+      unit: "mg",
     },
     {
-      label: 'Hidratos de carbono',
+      label: "Hidratos de carbono",
       value: productData.product.nutriments.carbohydrates_100g || 0,
-      unit: 'g',
+      unit: "g",
     },
     {
-      label: '- Azúcares',
+      label: "- Azúcares",
       value: productData.product.nutriments.sugars_100g || 0,
-      unit: 'g',
+      unit: "g",
     },
     {
-      label: 'Fibra alimentaria',
+      label: "Fibra alimentaria",
       value: productData.product.nutriments.fiber_100g || 0,
-      unit: 'g',
+      unit: "g",
     },
     {
-      label: 'Proteínas',
+      label: "Proteínas",
       value: productData.product.nutriments.proteins_100g || 0,
-      unit: 'g',
+      unit: "g",
     },
     {
-      label: 'Sal',
+      label: "Sal",
       value: productData.product.nutriments.salt_100g || 0,
-      unit: 'g',
+      unit: "g",
     },
     {
-      label: 'Sodio',
+      label: "Sodio",
       value: productData.product.nutriments.sodium_100g || 0,
-      unit: 'g',
+      unit: "g",
     },
     {
-      label: 'Calcio',
+      label: "Calcio",
       value: productData.product.nutriments.calcium_100g || 0,
-      unit: 'mg',
+      unit: "mg",
     },
     {
-      label: 'Hierro',
+      label: "Hierro",
       value: productData.product.nutriments.iron_100g || 0,
-      unit: 'mg',
+      unit: "mg",
     },
     {
-      label: 'Vitamina A',
+      label: "Vitamina A",
       value: productData.product.nutriments.vitamin_a_100g || 0,
-      unit: 'µg',
+      unit: "µg",
     },
     {
-      label: 'Vitamina C',
+      label: "Vitamina C",
       value: productData.product.nutriments.vitamin_c_100g || 0,
-      unit: 'mg',
+      unit: "mg",
     },
     {
-      label: 'Vitamina D',
+      label: "Vitamina D",
       value: productData.product.nutriments.vitamin_d_100g || 0,
-      unit: 'µg',
+      unit: "µg",
     },
   ];
 
@@ -212,15 +226,15 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
     if (productData.product.image_url) {
       return productData.product.image_url;
     }
-    
+
     if (barcode) {
       // Formato correcto según la documentación de OpenFoodFacts API v2
       return `https://images.openfoodfacts.org/images/products/${barcode}/front_es.400.jpg`;
     }
-    
+
     return null;
   };
-  
+
   const productImage = getProductImage();
 
   // Función para manejar el borrado de caché
@@ -228,17 +242,15 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
     try {
       await clearProductCache();
       Alert.alert(
-        'Caché borrada',
-        'La caché de productos se ha borrado correctamente',
-        [{ text: 'OK' }]
+        "Caché borrada",
+        "La caché de productos se ha borrado correctamente",
+        [{ text: "OK" }]
       );
       setClearCacheModalVisible(false);
     } catch (error) {
-      Alert.alert(
-        'Error',
-        'No se pudo borrar la caché de productos',
-        [{ text: 'OK' }]
-      );
+      Alert.alert("Error", "No se pudo borrar la caché de productos", [
+        { text: "OK" },
+      ]);
       setClearCacheModalVisible(false);
     }
   };
@@ -264,7 +276,8 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
               <Ionicons name="trash-outline" size={24} color="#FF5252" />
             </View>
             <Text style={styles.modalText}>
-              ¿Estás seguro de que quieres borrar toda la caché de productos? Esta acción no se puede deshacer.
+              ¿Estás seguro de que quieres borrar toda la caché de productos?
+              Esta acción no se puede deshacer.
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -291,19 +304,23 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
           snapPoints={snapPoints}
           enablePanDownToClose
           onClose={onClose}
-          backgroundStyle={{ backgroundColor: 'white' }}
-          handleIndicatorStyle={{ backgroundColor: '#999' }}
+          backgroundStyle={{ backgroundColor: "white" }}
+          handleIndicatorStyle={{ backgroundColor: "#999" }}
         >
           <BottomSheetScrollView contentContainerStyle={styles.scrollContainer}>
             <View style={styles.header}>
-              <Text style={styles.productName}>{productData.product.product_name}</Text>
+              <Text style={styles.productName}>
+                {productData.product.product_name}
+              </Text>
               {productData.product.brands && (
-                <Text style={styles.brandName}>{productData.product.brands}</Text>
+                <Text style={styles.brandName}>
+                  {productData.product.brands}
+                </Text>
               )}
             </View>
 
             {productImage ? (
-              <Image 
+              <Image
                 source={{ uri: productImage }}
                 style={styles.productImage}
                 resizeMode="contain"
@@ -325,9 +342,15 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
                 <View style={styles.scoreItem}>
                   <Text style={styles.scoreLabel}>Nutri-Score</Text>
                   <View style={styles.scoreImageContainer}>
-                    {nutriScoreLoading && <ActivityIndicator size="small" color="#999" />}
-                    <Image 
-                      source={{ uri: getNutriScoreImage(productData.product.nutriscore_grade) }}
+                    {nutriScoreLoading && (
+                      <ActivityIndicator size="small" color="#999" />
+                    )}
+                    <Image
+                      source={{
+                        uri: getNutriScoreImage(
+                          productData.product.nutriscore_grade
+                        ),
+                      }}
                       style={styles.scoreImage}
                       onLoadStart={() => setNutriScoreLoading(true)}
                       onLoadEnd={() => setNutriScoreLoading(false)}
@@ -337,7 +360,9 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
                       }}
                     />
                     {nutriScoreError && (
-                      <Text style={styles.scoreError}>Error al cargar Nutri-Score</Text>
+                      <Text style={styles.scoreError}>
+                        Error al cargar Nutri-Score
+                      </Text>
                     )}
                   </View>
                 </View>
@@ -347,10 +372,17 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
                 <View style={styles.scoreItem}>
                   <Text style={styles.scoreLabel}>Eco-Score</Text>
                   <View style={styles.scoreImageContainer}>
-                    {ecoScoreLoading && <ActivityIndicator size="small" color="#999" />}
-                    <Image 
-                      source={{ uri: getEcoScoreImage(productData.product.ecoscore_grade) }}
+                    {ecoScoreLoading && (
+                      <ActivityIndicator size="small" color="#999" />
+                    )}
+                    <Image
+                      source={{
+                        uri: getEcoScoreImage(
+                          productData.product.ecoscore_grade
+                        ),
+                      }}
                       style={styles.scoreImage}
+                      resizeMode="contain"
                       onLoadStart={() => setEcoScoreLoading(true)}
                       onLoadEnd={() => setEcoScoreLoading(false)}
                       onError={() => {
@@ -362,7 +394,9 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
                       <ActivityIndicator size="small" color="#999" />
                     )}
                     {ecoScoreError && useEcoScoreFallback && (
-                      <Text style={styles.scoreError}>Error al cargar Eco-Score</Text>
+                      <Text style={styles.scoreError}>
+                        Error al cargar Eco-Score
+                      </Text>
                     )}
                   </View>
                 </View>
@@ -370,29 +404,42 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
             </View>
 
             {/* Ingredientes */}
-            {productData.product.ingredients_text && productData.product.ingredients_text.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Ingredientes</Text>
-                <Text style={styles.ingredients}>{productData.product.ingredients_text}</Text>
-              </View>
-            )}
+            {productData.product.ingredients_text &&
+              productData.product.ingredients_text.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Ingredientes</Text>
+                  <Text style={styles.ingredients}>
+                    {productData.product.ingredients_text}
+                  </Text>
+                </View>
+              )}
 
             {/* Información nutricional */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Información nutricional</Text>
-              <Text style={styles.nutritionalInfo}>Valores medios por 100g:</Text>
+              <Text style={styles.nutritionalInfo}>
+                Valores medios por 100g:
+              </Text>
 
               <View style={styles.nutrientGroup}>
                 <Text style={styles.nutrientGroupTitle}>Macronutrientes</Text>
                 {nutrients.slice(0, 9).map((nutrient, index) => (
-                  <View key={index} style={[
-                    styles.nutrientRow,
-                    nutrient.label.startsWith('-') && styles.subNutrientRow
-                  ]}>
-                    <Text style={[
-                      styles.nutrientLabel,
-                      nutrient.label.startsWith('-') && styles.subNutrientLabel
-                    ]}>{nutrient.label}</Text>
+                  <View
+                    key={index}
+                    style={[
+                      styles.nutrientRow,
+                      nutrient.label.startsWith("-") && styles.subNutrientRow,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.nutrientLabel,
+                        nutrient.label.startsWith("-") &&
+                          styles.subNutrientLabel,
+                      ]}
+                    >
+                      {nutrient.label}
+                    </Text>
                     <Text style={styles.nutrientValue}>
                       {nutrient.value.toFixed(1)} {nutrient.unit}
                     </Text>
@@ -426,9 +473,13 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
             </View>
 
             {/* Botón para ver más detalles */}
-            <TouchableOpacity 
-              style={styles.linkButton} 
-              onPress={() => Linking.openURL(`https://world.openfoodfacts.org/product/${barcode}`)}
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() =>
+                Linking.openURL(
+                  `https://world.openfoodfacts.org/product/${barcode}`
+                )
+              }
             >
               <Text style={styles.linkButtonText}>Ver en Open Food Facts</Text>
               <Ionicons name="open-outline" size={20} color="#6D9EBE" />
@@ -440,61 +491,61 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
   );
 }
 
-const windowHeight = Dimensions.get('window').height;
+const windowHeight = Dimensions.get("window").height;
 
 const styles = StyleSheet.create({
   scrollContainer: {
     padding: 16,
   },
   header: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+    flexDirection: "column",
+    alignItems: "flex-start",
     padding: 16,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    position: 'relative',
+    borderBottomColor: "#eee",
+    position: "relative",
     marginBottom: 16,
   },
   handleIndicator: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: "#E0E0E0",
     width: 40,
     height: 4,
     borderRadius: 2,
   },
   closeButton: {
-    position: 'absolute',
+    position: "absolute",
     left: 16,
     padding: 8,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
   contentContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   productImage: {
-    width: '100%',
+    width: "100%",
     height: 300,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
     borderRadius: 12,
     marginBottom: 16,
   },
   imagePlaceholder: {
-    width: '100%',
+    width: "100%",
     height: 200,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#f5f5f5",
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 12,
     marginBottom: 16,
   },
   barcodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f9f9f9',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9f9f9",
     padding: 10,
     borderRadius: 8,
     marginBottom: 16,
@@ -502,42 +553,42 @@ const styles = StyleSheet.create({
   barcode: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   scoresContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
     marginVertical: 20,
     paddingVertical: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
     borderRadius: 12,
   },
   scoreItem: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   scoreImageContainer: {
     width: 120,
-    height: 70,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
+    height: 85, // Aumentar altura para acomodar la imagen completa
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
   },
   scoreImage: {
     width: 120,
-    height: 70,
+    height: 80, // Aumentar altura para mostrar la imagen completa
     marginBottom: 10,
   },
   scoreLoader: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
+    position: "absolute",
+    top: "50%",
+    left: "50%",
     marginLeft: -10,
     marginTop: -10,
   },
   scoreError: {
-    color: '#FF5252',
+    color: "#FF5252",
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 4,
   },
   scoreImageError: {
@@ -546,157 +597,157 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: "#f0f0f0",
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 12,
   },
   sectionSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 16,
   },
   sectionText: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#444',
+    color: "#444",
   },
   nutrientGroup: {
     marginBottom: 24,
     padding: 12,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
     borderRadius: 8,
   },
   nutrientGroupTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 12,
-    color: '#333',
+    color: "#333",
   },
   nutrientRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: "#f0f0f0",
   },
   subNutrientRow: {
     paddingLeft: 20,
   },
   nutrientLabel: {
     fontSize: 16,
-    color: '#444',
+    color: "#444",
   },
   subNutrientLabel: {
-    color: '#666',
+    color: "#666",
   },
   nutrientValue: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: "500",
+    color: "#333",
   },
   ingredients: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#444',
+    color: "#444",
   },
   nutritionalInfo: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 16,
   },
   scoreLabel: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginBottom: 8,
   },
   linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 32,
     marginBottom: 24,
     padding: 16,
-    backgroundColor: '#f0f7fc',
+    backgroundColor: "#f0f7fc",
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#d0e6f7',
+    borderColor: "#d0e6f7",
   },
   linkButtonText: {
     fontSize: 16,
-    color: '#6D9EBE',
-    fontWeight: '500',
+    color: "#6D9EBE",
+    fontWeight: "500",
   },
   productName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 4,
   },
   brandName: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 8,
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContainer: {
-    width: '80%',
-    backgroundColor: '#fff',
+    width: "80%",
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginRight: 8,
   },
   modalText: {
     fontSize: 16,
-    color: '#444',
-    textAlign: 'center',
+    color: "#444",
+    textAlign: "center",
     marginBottom: 20,
   },
   modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
   },
   modalButton: {
     flex: 1,
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginHorizontal: 5,
   },
   cancelButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: "#f0f0f0",
   },
   confirmButton: {
-    backgroundColor: '#FF5252',
+    backgroundColor: "#FF5252",
   },
   cancelButtonText: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
   },
   confirmButtonText: {
     fontSize: 16,
-    color: '#fff',
+    color: "#fff",
   },
 });
