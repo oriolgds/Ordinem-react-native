@@ -300,24 +300,6 @@ export function ProductDetailsModal({ visible, onClose, productData, barcode }: 
               {productData.product.brands && (
                 <Text style={styles.brandName}>{productData.product.brands}</Text>
               )}
-              
-              {/* Indicador del origen de los datos (pulsable) */}
-              <TouchableOpacity 
-                style={styles.sourceIndicator}
-                onPress={showClearCacheModal}
-              >
-                <Ionicons 
-                  name={productData.source === 'cache' ? "save-outline" : "cloud-outline"} 
-                  size={14} 
-                  color={productData.source === 'cache' ? "#4CAF50" : "#2196F3"} 
-                />
-                <Text style={[
-                  styles.sourceText, 
-                  {color: productData.source === 'cache' ? "#4CAF50" : "#2196F3"}
-                ]}>
-                  {productData.source === 'cache' ? "Datos en caché" : "Datos de API"}
-                </Text>
-              </TouchableOpacity>
             </View>
 
             {productImage ? (
@@ -532,23 +514,6 @@ const styles = StyleSheet.create({
   },
   scoreItem: {
     alignItems: 'center',
-  },
-  sourceIndicator: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E1E1E8',
-  },
-  sourceText: {
-    fontSize: 12,
-    marginLeft: 4,
   },
   scoreImageContainer: {
     width: 120,
