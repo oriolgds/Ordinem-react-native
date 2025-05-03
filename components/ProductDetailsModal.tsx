@@ -663,7 +663,16 @@ export function ProductDetailsModal({
             {/* Puntuación general del producto (solo círculo y texto, sin desglose) */}
             {productScore && (
               <View style={styles.productScoreContainer}>
-                <Text style={styles.sectionTitle}>Evaluación del producto</Text>
+                <View style={styles.scoreTitleContainer}>
+                  <Text style={styles.sectionTitle}>Evaluación del producto</Text>
+                  <TouchableOpacity
+                    style={styles.infoButton}
+                    onPress={() => router.push('/additives-info')}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="information-circle-outline" size={20} color="#6D9EBE" />
+                  </TouchableOpacity>
+                </View>
                 <View style={styles.scoreCircleContainer}>
                   <View
                     style={[
@@ -1088,7 +1097,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#fff",
   },
-  // Nuevos estilos para la puntuación del producto
+  // Nuevos estilos para la puntuación del producto con botón info
   productScoreContainer: {
     padding: 16,
     backgroundColor: "#fff",
@@ -1098,6 +1107,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#f0f0f0",
     alignItems: "center",
+  },
+  scoreTitleContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    position: 'relative',
+  },
+  infoButton: {
+    position: 'absolute',
+    right: 0,
+    padding: 4,
   },
   scoreCircleContainer: {
     alignItems: "center",
