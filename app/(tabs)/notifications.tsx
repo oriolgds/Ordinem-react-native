@@ -49,7 +49,12 @@ export default function NotificationsScreen() {
 
         if (result.product) {
           setSelectedProduct({
-            product: result.product,
+            product: {
+              ...result.product,
+              additives_tags: result.product.additives_tags || [],
+              additives_original_tags:
+                result.product.additives_original_tags || [],
+            },
             status: 1,
             source: result.source,
           });

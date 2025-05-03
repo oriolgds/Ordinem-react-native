@@ -152,6 +152,7 @@ export function ProductDetailsModal({
   const [bottomSheetVisible, setBottomSheetVisible] = useState(true);
   const [productScore, setProductScore] = useState<ProductScore | null>(null);
   const [productAdditives, setProductAdditives] = useState<AdditiveRisk[]>([]);
+  const [expandedRisk, setExpandedRisk] = useState<string | null>(null);
 
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["75%"], []);
@@ -259,6 +260,17 @@ export function ProductDetailsModal({
     }
   }, [visible, productData]);
 
+  // Agrupar aditivos por riesgo
+  const groupedAdditives: Record<string, AdditiveRisk[]> = {
+    high: [],
+    moderate: [],
+    low: [],
+    none: [],
+  };
+  productAdditives.forEach((additive) => {
+    groupedAdditives[additive.risk].push(additive);
+  });
+
   // Resto de useEffects para manejo de modal
   useEffect(() => {
     if (visible) {
@@ -332,6 +344,31 @@ export function ProductDetailsModal({
         return "Riesgo bajo";
       default:
         return "Sin riesgo";
+    }
+  };
+
+  // Nueva función para obtener el nombre de la función del aditivo
+  const getAdditiveFunctionName = (code: string): string => {
+    // Convertimos a minúsculas y eliminamos el posible prefijo "en:"
+    const cleanCode = code.toLowerCase().replace(/^en:/, "");
+
+    // Determinamos la función según el rango de códigos E
+    if (cleanCode.match(/^e?1\d\d$/)) {
+      return "Colorante";
+    } else if (cleanCode.match(/^e?2\d\d$/)) {
+      return "Conservante";
+    } else if (cleanCode.match(/^e?3\d\d$/)) {
+      return "Antioxidante";
+    } else if (cleanCode.match(/^e?4\d\d$/)) {
+      return "Estabilizante/Espesante";
+    } else if (cleanCode.match(/^e?5\d\d$/)) {
+      return "Regulador de acidez";
+    } else if (cleanCode.match(/^e?6\d\d$/)) {
+      return "Potenciador del sabor";
+    } else if (cleanCode.match(/^e?9\d\d$/)) {
+      return "Edulcorante";
+    } else {
+      return "Aditivo";
     }
   };
 
@@ -527,11 +564,13 @@ export function ProductDetailsModal({
             </View>
 
             {productImage ? (
-              <Image
-                source={{ uri: productImage }}
-                style={styles.productImage}
-                resizeMode="contain"
-              />
+              <View style={styles.imageContainer}>
+                <Image
+                  source={{ uri: productImage }}
+                  style={styles.productImage}
+                  resizeMode="contain"
+                />
+              </View>
             ) : (
               <View style={styles.imagePlaceholder}>
                 <Ionicons name="image-outline" size={60} color="#ccc" />
@@ -543,11 +582,157 @@ export function ProductDetailsModal({
               <Text style={styles.barcode}>{barcode}</Text>
             </View>
 
-            {/* Puntuación general del producto */}
+            {/* Sección de aditivos - Reposicionada para darle más importancia */}
+            {productData?.product?.additives_tags &&
+              productData.product.additives_tags.length > 0 && (
+                <View style={styles.additivesSection}>
+                  <Text style={styles.sectionTitle}>Aditivos</Text>
+                  <Text style={styles.additivesCount}>
+                    {productData.product.additives_tags.length} aditivos
+                    detectados
+                  </Text>
+
+                  {/* Lista de todos los aditivos */}
+                  <View style={styles.additivesList}>
+                    {productData.product.additives_tags.map(
+                      (additive, index) => {
+                        // Extraer el código (e100, etc.)
+                        const code = additive.replace(/^en:/, "").toUpperCase();
+                        const risk =
+                          ADDITIVES_RISK[
+                            additive.replace(/^en:/, "").toLowerCase()
+                          ] || "none";
+
+                        return (
+                          <View key={index} style={styles.additiveItemRow}>
+                            <View
+                              style={[
+                                styles.additiveRiskIndicator,
+                                { backgroundColor: getAdditiveRiskColor(risk) },
+                              ]}
+                            />
+                            <View style={styles.additiveDetails}>
+                              <Text style={styles.additiveCode}>{code}</Text>
+                              <Text style={styles.additiveFunction}>
+                                {getAdditiveFunctionName(code)}
+                              </Text>
+                            </View>
+                            <View style={styles.additiveRiskContainer}>
+                              <Text
+                                style={[
+                                  styles.additiveRiskText,
+                                  { color: getAdditiveRiskColor(risk) },
+                                ]}
+                              >
+                                {getAdditiveRiskText(risk)}
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      }
+                    )}
+                  </View>
+
+                  {/* Información educativa sobre funciones de aditivos */}
+                  <View style={styles.additiveInfoContainer}>
+                    <Text style={styles.additiveInfoTitle}>
+                      ¿Qué significa cada tipo de aditivo?
+                    </Text>
+                    <View style={styles.additiveInfoRow}>
+                      <Text style={styles.additiveInfoType}>
+                        Colorantes (E1xx):
+                      </Text>
+                      <Text style={styles.additiveInfoDesc}>
+                        Modifican o dan color a los alimentos.
+                      </Text>
+                    </View>
+                    <View style={styles.additiveInfoRow}>
+                      <Text style={styles.additiveInfoType}>
+                        Conservantes (E2xx):
+                      </Text>
+                      <Text style={styles.additiveInfoDesc}>
+                        Prolongan la vida útil del producto.
+                      </Text>
+                    </View>
+                    <View style={styles.additiveInfoRow}>
+                      <Text style={styles.additiveInfoType}>
+                        Antioxidantes (E3xx):
+                      </Text>
+                      <Text style={styles.additiveInfoDesc}>
+                        Evitan la oxidación y enranciamiento.
+                      </Text>
+                    </View>
+                    <View style={styles.additiveInfoRow}>
+                      <Text style={styles.additiveInfoType}>
+                        Estabilizantes (E4xx):
+                      </Text>
+                      <Text style={styles.additiveInfoDesc}>
+                        Mantienen la consistencia del producto.
+                      </Text>
+                    </View>
+                    <View style={styles.additiveInfoRow}>
+                      <Text style={styles.additiveInfoType}>
+                        Ácidos/Bases (E5xx):
+                      </Text>
+                      <Text style={styles.additiveInfoDesc}>
+                        Regulan la acidez o alcalinidad.
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Leyenda de riesgos */}
+                  <View style={styles.riskLegend}>
+                    <Text style={styles.legendTitle}>Niveles de riesgo:</Text>
+                    <View style={styles.legendRow}>
+                      <View
+                        style={[
+                          styles.legendIndicator,
+                          { backgroundColor: getAdditiveRiskColor("high") },
+                        ]}
+                      />
+                      <Text style={styles.legendText}>
+                        Alto - Evitar cuando sea posible
+                      </Text>
+                    </View>
+                    <View style={styles.legendRow}>
+                      <View
+                        style={[
+                          styles.legendIndicator,
+                          { backgroundColor: getAdditiveRiskColor("moderate") },
+                        ]}
+                      />
+                      <Text style={styles.legendText}>
+                        Moderado - Consumo ocasional
+                      </Text>
+                    </View>
+                    <View style={styles.legendRow}>
+                      <View
+                        style={[
+                          styles.legendIndicator,
+                          { backgroundColor: getAdditiveRiskColor("low") },
+                        ]}
+                      />
+                      <Text style={styles.legendText}>
+                        Bajo - Consumo con moderación
+                      </Text>
+                    </View>
+                    <View style={styles.legendRow}>
+                      <View
+                        style={[
+                          styles.legendIndicator,
+                          { backgroundColor: getAdditiveRiskColor("none") },
+                        ]}
+                      />
+                      <Text style={styles.legendText}>Sin riesgo conocido</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+            {/* Puntuación general del producto (solo círculo y texto, sin desglose) */}
             {productScore && (
               <View style={styles.productScoreContainer}>
                 <Text style={styles.sectionTitle}>Evaluación del producto</Text>
-
                 <View style={styles.scoreCircleContainer}>
                   <View
                     style={[
@@ -560,29 +745,6 @@ export function ProductDetailsModal({
                   <Text style={styles.scoreRating}>
                     {getScoreRating(productScore.total)}
                   </Text>
-                </View>
-
-                <View style={styles.scoreDetailContainer}>
-                  <View style={styles.scoreDetailItem}>
-                    <Text style={styles.scoreDetailLabel}>
-                      Valor nutricional
-                    </Text>
-                    <Text style={styles.scoreDetailValue}>
-                      {productScore.nutritional}/60
-                    </Text>
-                  </View>
-                  <View style={styles.scoreDetailItem}>
-                    <Text style={styles.scoreDetailLabel}>Aditivos</Text>
-                    <Text style={styles.scoreDetailValue}>
-                      {productScore.additives}/30
-                    </Text>
-                  </View>
-                  <View style={styles.scoreDetailItem}>
-                    <Text style={styles.scoreDetailLabel}>Orgánico</Text>
-                    <Text style={styles.scoreDetailValue}>
-                      {productScore.organic}/10
-                    </Text>
-                  </View>
                 </View>
               </View>
             )}
@@ -654,41 +816,6 @@ export function ProductDetailsModal({
                 </View>
               )}
             </View>
-
-            {/* Sección de aditivos */}
-            {productAdditives.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Aditivos</Text>
-                <Text style={styles.sectionSubtitle}>
-                  {productAdditives.length} aditivos detectados
-                </Text>
-
-                <View style={styles.additivesContainer}>
-                  {productAdditives.map((additive, index) => (
-                    <View key={index} style={styles.additiveItem}>
-                      <View
-                        style={[
-                          styles.additiveRiskIndicator,
-                          {
-                            backgroundColor: getAdditiveRiskColor(
-                              additive.risk
-                            ),
-                          },
-                        ]}
-                      />
-                      <View style={styles.additiveInfo}>
-                        <Text style={styles.additiveCode}>
-                          {additive.code.toUpperCase()}
-                        </Text>
-                        <Text style={styles.additiveRiskText}>
-                          {getAdditiveRiskText(additive.risk)}
-                        </Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
 
             {/* Ingredientes */}
             {productData.product.ingredients_text &&
@@ -813,16 +940,20 @@ const styles = StyleSheet.create({
   contentContainer: {
     backgroundColor: "#fff",
   },
-  productImage: {
-    width: "100%",
-    height: 300,
+  imageContainer: {
+    padding: 12,
     backgroundColor: "#f5f5f5",
     borderRadius: 12,
     marginBottom: 16,
+    alignItems: "center",
+  },
+  productImage: {
+    width: "100%",
+    height: 240,
+    resizeMode: "contain",
   },
   imagePlaceholder: {
-    width: "100%",
-    height: 200,
+    padding: 30,
     backgroundColor: "#f5f5f5",
     justifyContent: "center",
     alignItems: "center",
@@ -1070,32 +1201,25 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
   },
-  scoreDetailContainer: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-  },
-  scoreDetailItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  scoreDetailLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
-  },
-  scoreDetailValue: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
 
   // Nuevos estilos para la sección de aditivos
-  additivesContainer: {
-    marginTop: 8,
+  additivesSection: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
   },
-  additiveItem: {
+  additivesCount: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 16,
+  },
+  additivesList: {
+    marginBottom: 16,
+  },
+  additiveItemRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 8,
@@ -1108,7 +1232,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 12,
   },
-  additiveInfo: {
+  additiveDetails: {
     flex: 1,
   },
   additiveCode: {
@@ -1116,8 +1240,65 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#333",
   },
-  additiveRiskText: {
+  additiveFunction: {
     fontSize: 14,
     color: "#666",
+  },
+  additiveRiskContainer: {
+    alignItems: "flex-end",
+  },
+  additiveRiskText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  riskLegend: {
+    marginTop: 16,
+  },
+  legendTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  legendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  legendIndicator: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  legendText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  // Añade estos estilos nuevos para la sección informativa de aditivos
+  additiveInfoContainer: {
+    backgroundColor: "#f8f8f8",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  additiveInfoTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: 10,
+    color: "#444",
+  },
+  additiveInfoRow: {
+    marginBottom: 6,
+  },
+  additiveInfoType: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+  },
+  additiveInfoDesc: {
+    fontSize: 13,
+    color: "#666",
+    marginTop: 2,
   },
 });

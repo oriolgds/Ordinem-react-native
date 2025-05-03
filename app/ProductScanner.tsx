@@ -1,26 +1,26 @@
 /**
  * Página del Scanner de Productos de Ordinem
- * 
+ *
  * Este componente proporciona un escáner de códigos de barras para consultar información
  * nutricional de productos desde la base de datos de OpenFoodFacts. Sus principales
  * funcionalidades son:
- * 
+ *
  * - Escanear códigos de barras EAN-8, EAN-13, UPC-A y UPC-E
  * - Buscar automáticamente información del producto en OpenFoodFacts
  * - Mostrar información nutricional detallada (Nutri-Score, Eco-Score)
  * - Visualizar ingredientes y valores nutricionales por 100g
  * - Permitir escanear múltiples productos de forma consecutiva
- * 
+ *
  * IMPORTANTE: A diferencia de la página principal de productos, este scanner NO añade
  * productos al inventario del armario Ordinem. Funciona como un escáner informativo,
  * similar a aplicaciones como Yuka, diseñado para consultar información de productos
  * mientras se está en el supermercado antes de comprarlos.
- * 
+ *
  * Los productos en el inventario de los armarios son detectados y añadidos automáticamente
  * por los dispositivos Ordinem mediante sus propios sensores, no mediante este scanner.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -32,16 +32,16 @@ import {
   Modal,
   TextInput,
   ScrollView,
-} from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
-import { useRouter, useNavigation } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { ProductDetailsModal } from '@/components/ProductDetailsModal';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { getDatabase, ref, set } from 'firebase/database';
-import { getLinkedDevices } from '@/services/firebase';
-import { fetchProductWithCache } from '@/services/cacheService';
-import { useProducts } from '@/hooks/useProducts';
+} from "react-native";
+import { BarCodeScanner } from "expo-barcode-scanner";
+import { useRouter, useNavigation } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { ProductDetailsModal } from "@/components/ProductDetailsModal";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { getDatabase, ref, set } from "firebase/database";
+import { getLinkedDevices } from "@/services/firebase";
+import { fetchProductWithCache } from "@/services/cacheService";
+import { useProducts } from "@/hooks/useProducts";
 
 interface ProductData {
   product: {
@@ -71,7 +71,7 @@ interface ProductData {
     };
   };
   status: number;
-  source?: 'cache' | 'api';
+  source?: "cache" | "api";
 }
 
 export default function ProductScanner() {
@@ -79,24 +79,26 @@ export default function ProductScanner() {
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [scannedProduct, setScannedProduct] = useState<ProductData | null>(null);
-  const [scannedBarcode, setScannedBarcode] = useState<string>('');
-  
+  const [scannedProduct, setScannedProduct] = useState<ProductData | null>(
+    null
+  );
+  const [scannedBarcode, setScannedBarcode] = useState<string>("");
+
   const router = useRouter();
   const navigation = useNavigation();
 
   useEffect(() => {
     const getBarCodeScannerPermissions = async () => {
       const { status } = await BarCodeScanner.requestPermissionsAsync();
-      setHasPermission(status === 'granted');
+      setHasPermission(status === "granted");
     };
 
     getBarCodeScannerPermissions();
   }, []);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (nextAppState === "active") {
         setScanned(false);
         setLoading(false);
       }
@@ -108,7 +110,7 @@ export default function ProductScanner() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener("focus", () => {
       setScanned(false);
       setLoading(false);
     });
@@ -129,36 +131,43 @@ export default function ProductScanner() {
       // Actualizar el estado del producto escaneado
       setScannedProduct({
         product: productData,
-        status: 1
+        status: 1,
       });
-      
+
       // Mostrar modal con información nutricional
       setModalVisible(true);
       return true;
     } catch (error) {
-      console.error('Error al mostrar detalles del producto:', error);
+      console.error("Error al mostrar detalles del producto:", error);
       Alert.alert(
-        'Error',
-        'No se pudo mostrar la información del producto. Por favor, inténtalo de nuevo.',
-        [{ text: 'OK' }]
+        "Error",
+        "No se pudo mostrar la información del producto. Por favor, inténtalo de nuevo.",
+        [{ text: "OK" }]
       );
       return false;
     }
   };
 
-  const updateScannedProduct = async (product: any, source: 'cache' | 'api') => {
+  const updateScannedProduct = async (
+    product: any,
+    source: "cache" | "api"
+  ) => {
     // Primero cerramos el modal actual si está abierto
     if (modalVisible) {
       setModalVisible(false);
     }
-    
-    // Actualizamos el producto y abrimos el modal con la información nutricional
+
+    // Asegurarnos de que el formato de los datos es consistente
     setScannedProduct({
-      product: product,
+      product: {
+        ...product,
+        additives_tags: product.additives_tags || [],
+        additives_original_tags: product.additives_original_tags || [],
+      },
       status: 1,
-      source: source // Añadir la información del origen
+      source: source,
     });
-    
+
     // Mostrar el modal con la información del producto
     setTimeout(() => {
       setModalVisible(true);
@@ -169,10 +178,10 @@ export default function ProductScanner() {
     try {
       // Usar nuestro nuevo sistema de caché local
       const result = await fetchProductWithCache(barcode);
-      
+
       if (result.product) {
         // Si hay un mensaje indicando el origen del producto, mostrarlo brevemente
-        if (result.source === 'cache') {
+        if (result.source === "cache") {
           // Producto obtenido de la caché local
           console.log(`Producto ${barcode} recuperado de la caché local`);
         } else {
@@ -182,18 +191,18 @@ export default function ProductScanner() {
         return { product: result.product, source: result.source };
       } else {
         Alert.alert(
-          'Producto no encontrado',
-          'Este producto no está disponible en la base de datos.',
-          [{ text: 'OK', onPress: () => setScanned(false) }]
+          "Producto no encontrado",
+          "Este producto no está disponible en la base de datos.",
+          [{ text: "OK", onPress: () => setScanned(false) }]
         );
         return null;
       }
     } catch (error) {
-      console.error('Error al obtener información del producto:', error);
+      console.error("Error al obtener información del producto:", error);
       Alert.alert(
-        'Error',
-        'No se pudo obtener la información del producto. Por favor, inténtalo de nuevo.',
-        [{ text: 'OK', onPress: () => setScanned(false) }]
+        "Error",
+        "No se pudo obtener la información del producto. Por favor, inténtalo de nuevo.",
+        [{ text: "OK", onPress: () => setScanned(false) }]
       );
       return null;
     } finally {
@@ -201,7 +210,13 @@ export default function ProductScanner() {
     }
   };
 
-  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = async ({
+    type,
+    data,
+  }: {
+    type: string;
+    data: string;
+  }) => {
     if (scanned) return;
     setScanned(true);
     setLoading(true);
@@ -210,9 +225,9 @@ export default function ProductScanner() {
     if (data.length < 8 || data.length > 13 || !/^\d+$/.test(data)) {
       setLoading(false);
       Alert.alert(
-        'Código inválido',
-        'Por favor, escanea un código de barras válido.',
-        [{ text: 'OK', onPress: () => setScanned(false) }]
+        "Código inválido",
+        "Por favor, escanea un código de barras válido.",
+        [{ text: "OK", onPress: () => setScanned(false) }]
       );
       return;
     }
@@ -227,11 +242,11 @@ export default function ProductScanner() {
     router.back();
   };
 
-// Actualizado para el flujo informativo (solo consulta)
+  // Actualizado para el flujo informativo (solo consulta)
   const handleScanAgain = () => {
     setScanned(false);
     setScannedProduct(null);
-    setScannedBarcode('');
+    setScannedBarcode("");
   };
 
   if (hasPermission === null) {
@@ -303,7 +318,10 @@ export default function ProductScanner() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.closeButtonContainer} onPress={handleClose}>
+        <TouchableOpacity
+          style={styles.closeButtonContainer}
+          onPress={handleClose}
+        >
           <Ionicons name="close-outline" size={50} color="white" />
         </TouchableOpacity>
 
@@ -316,7 +334,7 @@ export default function ProductScanner() {
           </TouchableOpacity>
         )}
 
-        <ProductDetailsModal 
+        <ProductDetailsModal
           visible={modalVisible}
           onClose={() => {
             setModalVisible(false);
@@ -333,34 +351,34 @@ export default function ProductScanner() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "black",
+    justifyContent: "center",
+    alignItems: "center",
   },
   overlay: {
     flex: 1,
-    width: '100%',
+    width: "100%",
   },
   unfilled: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     height: 250,
   },
   scanner: {
     width: 250,
     height: 250,
-    position: 'relative',
+    position: "relative",
   },
   corner: {
-    position: 'absolute',
+    position: "absolute",
     width: 20,
     height: 20,
-    borderColor: 'white',
+    borderColor: "white",
   },
   cornerTL: {
     top: 0,
@@ -387,99 +405,99 @@ const styles = StyleSheet.create({
     borderRightWidth: 3,
   },
   instructions: {
-    color: 'white',
-    textAlign: 'center',
+    color: "white",
+    textAlign: "center",
     fontSize: 16,
-    maxWidth: '80%',
+    maxWidth: "80%",
     marginBottom: 20,
   },
   closeButtonContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 50,
     right: 20,
   },
   rescanButton: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 50,
     left: 0,
     right: 0,
-    backgroundColor: '#6D9EBE',
+    backgroundColor: "#6D9EBE",
     padding: 15,
     margin: 20,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   rescanButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   permissionText: {
     fontSize: 18,
-    color: 'white',
+    color: "white",
     marginTop: 20,
     marginBottom: 10,
   },
   permissionSubtext: {
     fontSize: 14,
-    color: 'white',
+    color: "white",
     opacity: 0.8,
-    textAlign: 'center',
+    textAlign: "center",
     marginHorizontal: 40,
     marginBottom: 30,
   },
   closeButton: {
-    backgroundColor: '#6D9EBE',
+    backgroundColor: "#6D9EBE",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 25,
   },
   closeButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   loadingContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.7)",
   },
   loadingText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
     marginTop: 10,
   },
   modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
   },
   modalContent: {
-    width: '80%',
-    backgroundColor: 'white',
+    width: "80%",
+    backgroundColor: "white",
     borderRadius: 10,
     padding: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: "center",
   },
   productName: {
     fontSize: 16,
     marginBottom: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
   inputContainer: {
-    width: '100%',
+    width: "100%",
     marginBottom: 20,
   },
   inputLabel: {
@@ -487,57 +505,57 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   dateInput: {
-    width: '100%',
+    width: "100%",
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 5,
     padding: 10,
     fontSize: 16,
   },
   buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
   },
   modalButton: {
     flex: 1,
     marginHorizontal: 5,
     padding: 10,
     borderRadius: 5,
-    alignItems: 'center',
+    alignItems: "center",
   },
   cancelButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: "#ccc",
   },
   saveButton: {
-    backgroundColor: '#6D9EBE',
+    backgroundColor: "#6D9EBE",
   },
   cancelButtonText: {
-    color: '#333',
+    color: "#333",
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   saveButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   deviceSelectorContent: {
-    width: '90%',
-    maxHeight: '80%',
-    backgroundColor: 'white',
+    width: "90%",
+    maxHeight: "80%",
+    backgroundColor: "white",
     borderRadius: 10,
     padding: 20,
   },
   deviceList: {
-    maxHeight: '70%',
+    maxHeight: "70%",
   },
   deviceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e8',
+    borderBottomColor: "#e1e1e8",
   },
   deviceItemInfo: {
     flex: 1,
@@ -545,21 +563,21 @@ const styles = StyleSheet.create({
   },
   deviceItemName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: "bold",
+    color: "#333",
   },
   deviceItemCount: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginTop: 2,
   },
   cancelDeviceButton: {
     marginTop: 15,
-    backgroundColor: '#f2f2f7',
+    backgroundColor: "#f2f2f7",
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
   },
 });
