@@ -575,10 +575,12 @@ export function ProductDetailsModal({
             )}
 
             {/* Sección de aditivos - Reposicionada para darle más importancia */}
-            {productData?.product?.additives_tags &&
-              productData.product.additives_tags.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Aditivos</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Aditivos</Text>
+
+              {productData?.product?.additives_tags &&
+              productData.product.additives_tags.length > 0 ? (
+                <>
                   <Text style={styles.additivesCount}>
                     {productData.product.additives_tags.length} aditivos
                     detectados
@@ -657,20 +659,38 @@ export function ProductDetailsModal({
                       />
                     </TouchableOpacity>
                   )}
+                </>
+              ) : (
+                <View style={styles.noAdditivesContainer}>
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={36}
+                    color="#4CAF50"
+                  />
+                  <Text style={styles.noAdditivesText}>
+                    Este producto no contiene aditivos detectados
+                  </Text>
                 </View>
               )}
+            </View>
 
             {/* Puntuación general del producto (solo círculo y texto, sin desglose) */}
             {productScore && (
               <View style={styles.productScoreContainer}>
                 <View style={styles.scoreTitleContainer}>
-                  <Text style={styles.sectionTitle}>Evaluación del producto</Text>
+                  <Text style={styles.sectionTitle}>
+                    Evaluación del producto
+                  </Text>
                   <TouchableOpacity
                     style={styles.infoButton}
-                    onPress={() => router.push('/additives-info')}
+                    onPress={() => router.push("/additives-info")}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="information-circle-outline" size={20} color="#6D9EBE" />
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={20}
+                      color="#6D9EBE"
+                    />
                   </TouchableOpacity>
                 </View>
                 <View style={styles.scoreCircleContainer}>
@@ -1109,15 +1129,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   scoreTitleContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 8,
-    position: 'relative',
+    position: "relative",
   },
   infoButton: {
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     padding: 4,
   },
@@ -1226,5 +1246,18 @@ const styles = StyleSheet.create({
   additiveRiskText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  // Nuevos estilos para cuando no hay aditivos
+  noAdditivesContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+  },
+  noAdditivesText: {
+    fontSize: 16,
+    color: "#4CAF50",
+    fontWeight: "500",
+    marginTop: 8,
+    textAlign: "center",
   },
 });
