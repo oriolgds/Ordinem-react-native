@@ -331,6 +331,7 @@ export default function AdditivesInfoScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    marginTop: 0,
     flex: 1,
     backgroundColor: "#fff",
   },
@@ -340,6 +341,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
+    marginTop: 20,
   },
   backButton: {
     padding: 8,

@@ -19,7 +19,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router"; // Añadir esta importación
+import { useRouter } from "expo-router";
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
@@ -148,25 +148,23 @@ export function ProductDetailsModal({
   productData,
   barcode,
 }: ProductDetailsModalProps) {
-  const router = useRouter(); // Añadir esta línea
+  const router = useRouter();
   const [useEcoScoreFallback, setUseEcoScoreFallback] = useState(false);
   const [clearCacheModalVisible, setClearCacheModalVisible] = useState(false);
   const [bottomSheetVisible, setBottomSheetVisible] = useState(true);
   const [productScore, setProductScore] = useState<ProductScore | null>(null);
   const [productAdditives, setProductAdditives] = useState<AdditiveRisk[]>([]);
   const [expandedRisk, setExpandedRisk] = useState<string | null>(null);
-
+  const [showAllAdditives, setShowAllAdditives] = useState(false);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["75%"], []);
 
   // Estado para seguir el estado de carga de las imágenes de score
   const [nutriScoreLoading, setNutriScoreLoading] = useState(true);
   const [ecoScoreLoading, setEcoScoreLoading] = useState(true);
-
   // Estado para manejar errores de carga
   const [nutriScoreError, setNutriScoreError] = useState(false);
   const [ecoScoreError, setEcoScoreError] = useState(false);
-
   // Calcular la puntuación del producto
   useEffect(() => {
     if (visible && productData) {
@@ -208,7 +206,6 @@ export function ProductDetailsModal({
             const code = additive.toLowerCase().replace(/[^a-z0-9]/g, "");
             const name = additive;
             const risk = ADDITIVES_RISK[code] || "none";
-
             if (risk === "high") hasHighRisk = true;
 
             // Reducir puntuación según nivel de riesgo
@@ -220,7 +217,6 @@ export function ProductDetailsModal({
           });
 
         setProductAdditives(additives);
-
         // Limitar a 0 como mínimo
         return Math.max(0, hasHighRisk ? Math.min(score, 19) : score); // Max 49/100 si hay aditivo de alto riesgo
       };
@@ -228,7 +224,6 @@ export function ProductDetailsModal({
       // Calcular si es orgánico
       const calcOrganicScore = () => {
         const labels = productData.product.labels_tags || [];
-
         // Buscar etiquetas orgánicas comunes
         const isOrganic = labels.some((label) => {
           const lowerLabel = label.toLowerCase();
@@ -238,8 +233,7 @@ export function ProductDetailsModal({
             lowerLabel.includes("ecologic") ||
             lowerLabel.includes("orgánico") ||
             lowerLabel.includes("biológico") ||
-            lowerLabel.includes("ecológico") ||
-            lowerLabel.includes("organic")
+            lowerLabel.includes("ecológico")
           );
         });
 
@@ -252,7 +246,6 @@ export function ProductDetailsModal({
       const organicScore = calcOrganicScore();
 
       const totalScore = nutritionalScore + additivesScore + organicScore;
-
       setProductScore({
         total: totalScore,
         nutritional: nutritionalScore,
@@ -303,8 +296,11 @@ export function ProductDetailsModal({
     setBottomSheetVisible(!clearCacheModalVisible);
   }, [clearCacheModalVisible]);
 
-  if (!productData || !visible) return null;
+  const toggleAdditives = () => {
+    setShowAllAdditives(!showAllAdditives);
+  };
 
+  if (!productData || !visible) return null;
   // Obtener color según puntuación
   const getScoreColor = (score: number): string => {
     if (score >= 75) return "#4CAF50"; // Verde (excelente)
@@ -353,7 +349,6 @@ export function ProductDetailsModal({
   const getAdditiveFunctionName = (code: string): string => {
     // Convertimos a minúsculas y eliminamos el posible prefijo "en:"
     const cleanCode = code.toLowerCase().replace(/^en:/, "");
-
     // Determinamos la función según el rango de códigos E
     if (cleanCode.match(/^e?1\d\d$/)) {
       return "Colorante";
@@ -579,32 +574,33 @@ export function ProductDetailsModal({
               </View>
             )}
 
-            <View style={styles.barcodeContainer}>
-              <Ionicons name="barcode-outline" size={16} color="#666" />
-              <Text style={styles.barcode}>{barcode}</Text>
-            </View>
-
             {/* Sección de aditivos - Reposicionada para darle más importancia */}
-            {productData?.product?.additives_tags &&
-              productData.product.additives_tags.length > 0 && (
-                <View style={styles.additivesSection}>
-                  <Text style={styles.sectionTitle}>Aditivos</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Aditivos</Text>
+
+              {productData?.product?.additives_tags &&
+              productData.product.additives_tags.length > 0 ? (
+                <>
                   <Text style={styles.additivesCount}>
                     {productData.product.additives_tags.length} aditivos
                     detectados
                   </Text>
-
                   {/* Lista de todos los aditivos */}
                   <View style={styles.additivesList}>
-                    {productData.product.additives_tags.map(
-                      (additive, index) => {
+                    {productData.product.additives_tags
+                      .slice(
+                        0,
+                        showAllAdditives
+                          ? productData.product.additives_tags.length
+                          : 3
+                      )
+                      .map((additive, index) => {
                         // Extraer el código (e100, etc.)
                         const code = additive.replace(/^en:/, "").toUpperCase();
                         const risk =
                           ADDITIVES_RISK[
                             additive.replace(/^en:/, "").toLowerCase()
                           ] || "none";
-
                         return (
                           <View key={index} style={styles.additiveItemRow}>
                             <View
@@ -631,18 +627,65 @@ export function ProductDetailsModal({
                             </View>
                           </View>
                         );
-                      }
-                    )}
+                      })}
+
+                    {!showAllAdditives &&
+                      productData.product.additives_tags.length > 3 && (
+                        <View style={styles.listGradientContainer}>
+                          <View style={styles.listGradient} />
+                        </View>
+                      )}
                   </View>
 
-                  {/* Añadir botón para más información */}
+                  {/* Texto simple para mostrar más aditivos */}
+                  {productData.product.additives_tags.length > 3 && (
+                    <TouchableOpacity
+                      style={styles.showMoreTextButton}
+                      onPress={toggleAdditives}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.showMoreText}>
+                        {showAllAdditives
+                          ? "Mostrar menos"
+                          : `Ver ${
+                              productData.product.additives_tags.length - 3
+                            } aditivos más`}
+                      </Text>
+                      <Ionicons
+                        name={showAllAdditives ? "chevron-up" : "chevron-down"}
+                        size={16}
+                        color="#6D9EBE"
+                        style={styles.showMoreIcon}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </>
+              ) : (
+                <View style={styles.noAdditivesContainer}>
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={36}
+                    color="#4CAF50"
+                  />
+                  <Text style={styles.noAdditivesText}>
+                    Este producto no contiene aditivos detectados
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Puntuación general del producto (solo círculo y texto, sin desglose) */}
+            {productScore && (
+              <View style={styles.productScoreContainer}>
+                <View style={styles.scoreTitleContainer}>
+                  <Text style={styles.sectionTitle}>
+                    Evaluación del producto
+                  </Text>
                   <TouchableOpacity
-                    style={styles.moreInfoButton}
+                    style={styles.infoButton}
                     onPress={() => router.push("/additives-info")}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.moreInfoButtonText}>
-                      Más información sobre aditivos y puntuación
-                    </Text>
                     <Ionicons
                       name="information-circle-outline"
                       size={20}
@@ -650,12 +693,6 @@ export function ProductDetailsModal({
                     />
                   </TouchableOpacity>
                 </View>
-              )}
-
-            {/* Puntuación general del producto (solo círculo y texto, sin desglose) */}
-            {productScore && (
-              <View style={styles.productScoreContainer}>
-                <Text style={styles.sectionTitle}>Evaluación del producto</Text>
                 <View style={styles.scoreCircleContainer}>
                   <View
                     style={[
@@ -812,11 +849,11 @@ export function ProductDetailsModal({
             {/* Botón para ver más detalles */}
             <TouchableOpacity
               style={styles.linkButton}
-              onPress={() =>
+              onPress={() => {
                 Linking.openURL(
                   `https://world.openfoodfacts.org/product/${barcode}`
-                )
-              }
+                );
+              }}
             >
               <Text style={styles.linkButtonText}>Ver en Open Food Facts</Text>
               <Ionicons name="open-outline" size={20} color="#6D9EBE" />
@@ -833,6 +870,7 @@ const windowHeight = Dimensions.get("window").height;
 const styles = StyleSheet.create({
   scrollContainer: {
     padding: 16,
+    paddingBottom: 32, // Añadir espacio en la parte inferior
   },
   header: {
     flexDirection: "column",
@@ -883,19 +921,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
   },
-  barcodeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  barcode: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#666",
-  },
   scoresContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -937,7 +962,7 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   section: {
-    marginTop: 24,
+    marginTop: 20, // Margen consistente entre secciones
     padding: 16,
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -1012,7 +1037,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 32,
+    marginTop: 20, // Consistente con otras secciones
     marginBottom: 24,
     padding: 16,
     backgroundColor: "#f0f7fc",
@@ -1092,15 +1117,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#fff",
   },
-  // Nuevos estilos para la puntuación del producto
+  // Nuevos estilos para la puntuación del producto con botón info
   productScoreContainer: {
     padding: 16,
     backgroundColor: "#fff",
     borderRadius: 12,
-    marginBottom: 16,
+    marginTop: 20, // Consistente con otras secciones
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: "#f0f0f0",
     alignItems: "center",
+  },
+  scoreTitleContainer: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    position: "relative",
+  },
+  infoButton: {
+    position: "absolute",
+    right: 0,
+    padding: 4,
   },
   scoreCircleContainer: {
     alignItems: "center",
@@ -1124,10 +1163,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
   },
-
   // Nuevos estilos para la sección de aditivos
   additivesSection: {
-    marginTop: 24,
+    marginTop: 20,
     padding: 16,
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -1140,7 +1178,42 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   additivesList: {
-    marginBottom: 16,
+    marginBottom: 8,
+    position: "relative",
+  },
+  listGradientContainer: {
+    position: "relative",
+    height: 25,
+    marginTop: -25,
+  },
+  listGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 25,
+    backgroundColor: "transparent",
+    borderBottomWidth: 0,
+    shadowColor: "#fff",
+    shadowOffset: { width: 0, height: -20 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 0,
+  },
+  showMoreTextButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  showMoreText: {
+    fontSize: 15,
+    color: "#6D9EBE",
+    fontWeight: "500",
+  },
+  showMoreIcon: {
+    marginLeft: 4,
   },
   additiveItemRow: {
     flexDirection: "row",
@@ -1174,44 +1247,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  riskLegend: {
-    marginTop: 16,
-  },
-  legendTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  legendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  legendIndicator: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  legendText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  moreInfoButton: {
-    flexDirection: "row",
+  // Nuevos estilos para cuando no hay aditivos
+  noAdditivesContainer: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: "#f8f8f8",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    gap: 8,
+    padding: 16,
   },
-  moreInfoButtonText: {
-    fontSize: 15,
-    color: "#6D9EBE",
+  noAdditivesText: {
+    fontSize: 16,
+    color: "#4CAF50",
     fontWeight: "500",
+    marginTop: 8,
+    textAlign: "center",
   },
 });
