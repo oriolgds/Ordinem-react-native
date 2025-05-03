@@ -13,10 +13,16 @@ import { useRouter } from "expo-router";
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationCard } from "@/components/NotificationCard";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { fetchProductWithCache } from "@/services/cacheService";
+import { ProductDetailsModal } from "@/components/ProductDetailsModal";
 
 export default function NotificationsScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showEmpty, setShowEmpty] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [productBarcode, setProductBarcode] = useState<string>("");
+
   const {
     notifications,
     loading,
@@ -28,22 +34,42 @@ export default function NotificationsScreen() {
   } = useNotifications();
   const router = useRouter();
 
-  // Manejar presión de notificación (navegar al detalle del producto)
-  const handleNotificationPress = (notification) => {
-    if (notification.product_barcode) {
-      router.push({
-        pathname: "/ProductDetails",
-        params: { barcode: notification.product_barcode },
-      });
+  const handleNotificationPress = async (notification) => {
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
 
-      // Marcar como leída al abrir
-      if (!notification.read) {
-        markAsRead(notification.id);
+    if (notification.product_barcode) {
+      try {
+        setProductBarcode(notification.product_barcode);
+
+        const result = await fetchProductWithCache(
+          notification.product_barcode
+        );
+
+        if (result.product) {
+          setSelectedProduct({
+            product: result.product,
+            status: 1,
+            source: result.source,
+          });
+          setModalVisible(true);
+        } else {
+          Alert.alert(
+            "Producto no encontrado",
+            "No se pudo encontrar información para este producto."
+          );
+        }
+      } catch (error) {
+        console.error("Error al cargar información del producto:", error);
+        Alert.alert(
+          "Error",
+          "Ocurrió un error al cargar la información del producto."
+        );
       }
     }
   };
 
-  // Efecto para controlar la transición a pantalla vacía
   useEffect(() => {
     if (!loading && notifications.length === 0) {
       setShowEmpty(true);
@@ -52,7 +78,6 @@ export default function NotificationsScreen() {
     }
   }, [loading, notifications.length]);
 
-  // Botón para marcar todas como leídas (solo visible si hay notificaciones sin leer)
   const renderMarkAllAsReadButton = () => {
     if (unreadCount === 0) return null;
 
@@ -76,7 +101,6 @@ export default function NotificationsScreen() {
     );
   };
 
-  // Botón para eliminar todas (solo visible si hay notificaciones)
   const renderDeleteAllButton = () => {
     if (notifications.length === 0 || isDeleting) return null;
 
@@ -122,7 +146,6 @@ export default function NotificationsScreen() {
     );
   };
 
-  // Indicador de carga durante la carga inicial
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -131,7 +154,6 @@ export default function NotificationsScreen() {
     );
   }
 
-  // Pantalla durante proceso de eliminación
   if (isDeleting) {
     return (
       <View style={styles.loadingContainer}>
@@ -144,7 +166,6 @@ export default function NotificationsScreen() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.container}>
-        {/* Encabezado con instrucciones de gestos */}
         {notifications.length > 0 && !showEmpty && (
           <View style={styles.gestureHintContainer}>
             <View style={styles.gestureHint}>
@@ -161,7 +182,6 @@ export default function NotificationsScreen() {
           </View>
         ) : (
           <>
-            {/* Chips de acciones rápidas */}
             <View style={styles.chipsContainer}>
               {renderMarkAllAsReadButton()}
               {renderDeleteAllButton()}
@@ -182,6 +202,13 @@ export default function NotificationsScreen() {
             />
           </>
         )}
+
+        <ProductDetailsModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          productData={selectedProduct}
+          barcode={productBarcode}
+        />
       </View>
     </GestureHandlerRootView>
   );
