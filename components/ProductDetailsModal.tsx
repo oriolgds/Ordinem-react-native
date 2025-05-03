@@ -19,6 +19,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router"; // Añadir esta importación
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
@@ -147,6 +148,7 @@ export function ProductDetailsModal({
   productData,
   barcode,
 }: ProductDetailsModalProps) {
+  const router = useRouter(); // Añadir esta línea
   const [useEcoScoreFallback, setUseEcoScoreFallback] = useState(false);
   const [clearCacheModalVisible, setClearCacheModalVisible] = useState(false);
   const [bottomSheetVisible, setBottomSheetVisible] = useState(true);
@@ -633,99 +635,20 @@ export function ProductDetailsModal({
                     )}
                   </View>
 
-                  {/* Información educativa sobre funciones de aditivos */}
-                  <View style={styles.additiveInfoContainer}>
-                    <Text style={styles.additiveInfoTitle}>
-                      ¿Qué significa cada tipo de aditivo?
+                  {/* Añadir botón para más información */}
+                  <TouchableOpacity
+                    style={styles.moreInfoButton}
+                    onPress={() => router.push("/additives-info")}
+                  >
+                    <Text style={styles.moreInfoButtonText}>
+                      Más información sobre aditivos y puntuación
                     </Text>
-                    <View style={styles.additiveInfoRow}>
-                      <Text style={styles.additiveInfoType}>
-                        Colorantes (E1xx):
-                      </Text>
-                      <Text style={styles.additiveInfoDesc}>
-                        Modifican o dan color a los alimentos.
-                      </Text>
-                    </View>
-                    <View style={styles.additiveInfoRow}>
-                      <Text style={styles.additiveInfoType}>
-                        Conservantes (E2xx):
-                      </Text>
-                      <Text style={styles.additiveInfoDesc}>
-                        Prolongan la vida útil del producto.
-                      </Text>
-                    </View>
-                    <View style={styles.additiveInfoRow}>
-                      <Text style={styles.additiveInfoType}>
-                        Antioxidantes (E3xx):
-                      </Text>
-                      <Text style={styles.additiveInfoDesc}>
-                        Evitan la oxidación y enranciamiento.
-                      </Text>
-                    </View>
-                    <View style={styles.additiveInfoRow}>
-                      <Text style={styles.additiveInfoType}>
-                        Estabilizantes (E4xx):
-                      </Text>
-                      <Text style={styles.additiveInfoDesc}>
-                        Mantienen la consistencia del producto.
-                      </Text>
-                    </View>
-                    <View style={styles.additiveInfoRow}>
-                      <Text style={styles.additiveInfoType}>
-                        Ácidos/Bases (E5xx):
-                      </Text>
-                      <Text style={styles.additiveInfoDesc}>
-                        Regulan la acidez o alcalinidad.
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Leyenda de riesgos */}
-                  <View style={styles.riskLegend}>
-                    <Text style={styles.legendTitle}>Niveles de riesgo:</Text>
-                    <View style={styles.legendRow}>
-                      <View
-                        style={[
-                          styles.legendIndicator,
-                          { backgroundColor: getAdditiveRiskColor("high") },
-                        ]}
-                      />
-                      <Text style={styles.legendText}>
-                        Alto - Evitar cuando sea posible
-                      </Text>
-                    </View>
-                    <View style={styles.legendRow}>
-                      <View
-                        style={[
-                          styles.legendIndicator,
-                          { backgroundColor: getAdditiveRiskColor("moderate") },
-                        ]}
-                      />
-                      <Text style={styles.legendText}>
-                        Moderado - Consumo ocasional
-                      </Text>
-                    </View>
-                    <View style={styles.legendRow}>
-                      <View
-                        style={[
-                          styles.legendIndicator,
-                          { backgroundColor: getAdditiveRiskColor("low") },
-                        ]}
-                      />
-                      <Text style={styles.legendText}>
-                        Bajo - Consumo con moderación
-                      </Text>
-                    </View>
-                    <View style={styles.legendRow}>
-                      <View
-                        style={[
-                          styles.legendIndicator,
-                          { backgroundColor: getAdditiveRiskColor("none") },
-                        ]}
-                      />
-                      <Text style={styles.legendText}>Sin riesgo conocido</Text>
-                    </View>
-                  </View>
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={20}
+                      color="#6D9EBE"
+                    />
+                  </TouchableOpacity>
                 </View>
               )}
 
@@ -1274,31 +1197,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
   },
-  // Añade estos estilos nuevos para la sección informativa de aditivos
-  additiveInfoContainer: {
-    backgroundColor: "#f8f8f8",
-    padding: 12,
-    borderRadius: 8,
+  moreInfoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 16,
-    marginBottom: 16,
+    padding: 12,
+    backgroundColor: "#f8f8f8",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    gap: 8,
   },
-  additiveInfoTitle: {
+  moreInfoButtonText: {
     fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 10,
-    color: "#444",
-  },
-  additiveInfoRow: {
-    marginBottom: 6,
-  },
-  additiveInfoType: {
-    fontSize: 14,
+    color: "#6D9EBE",
     fontWeight: "500",
-    color: "#333",
-  },
-  additiveInfoDesc: {
-    fontSize: 13,
-    color: "#666",
-    marginTop: 2,
   },
 });
