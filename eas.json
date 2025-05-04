@@ -22,8 +22,5 @@
                 "distribution": "store"
             }
         }
-    },
-    "submit": {
-        "production": {}
     }
 }
