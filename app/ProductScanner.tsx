@@ -26,22 +26,15 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   AppState,
-  Modal,
-  TextInput,
-  ScrollView,
 } from "react-native";
 import { BarCodeScanner } from "expo-barcode-scanner";
 import { useRouter, useNavigation } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ProductDetailsModal } from "@/components/ProductDetailsModal";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { getDatabase, ref, set } from "firebase/database";
-import { getLinkedDevices } from "@/services/firebase";
 import { fetchProductWithCache } from "@/services/cacheService";
-import { useProducts } from "@/hooks/useProducts";
 
 interface ProductData {
   product: {
@@ -83,6 +76,8 @@ export default function ProductScanner() {
     null
   );
   const [scannedBarcode, setScannedBarcode] = useState<string>("");
+  const [lastScannedBarcode, setLastScannedBarcode] = useState<string>(""); // Nuevo estado para controlar escaneos duplicados
+  const [scannerActive, setScannerActive] = useState(true); // Nuevo estado para controlar si el escáner está activo
 
   const router = useRouter();
   const navigation = useNavigation();
@@ -124,26 +119,18 @@ export default function ProductScanner() {
    * Los productos son detectados y añadidos automáticamente por el armario Ordinem.
    */
 
-  // Función para mostrar detalles del producto cuando se escanea
-  // No guarda el producto en Firebase, solo muestra su información nutricional
   const showProductDetails = async (barcode: string, productData: any) => {
     try {
-      // Actualizar el estado del producto escaneado
       setScannedProduct({
         product: productData,
         status: 1,
       });
 
-      // Mostrar modal con información nutricional
       setModalVisible(true);
       return true;
     } catch (error) {
       console.error("Error al mostrar detalles del producto:", error);
-      Alert.alert(
-        "Error",
-        "No se pudo mostrar la información del producto. Por favor, inténtalo de nuevo.",
-        [{ text: "OK" }]
-      );
+      setScannerActive(true);
       return false;
     }
   };
@@ -152,58 +139,54 @@ export default function ProductScanner() {
     product: any,
     source: "cache" | "api"
   ) => {
-    // Primero cerramos el modal actual si está abierto
     if (modalVisible) {
       setModalVisible(false);
-    }
 
-    // Asegurarnos de que el formato de los datos es consistente
-    setScannedProduct({
-      product: {
-        ...product,
-        additives_tags: product.additives_tags || [],
-        additives_original_tags: product.additives_original_tags || [],
-      },
-      status: 1,
-      source: source,
-    });
-
-    // Mostrar el modal con la información del producto
-    setTimeout(() => {
+      setTimeout(() => {
+        setScannedProduct({
+          product: {
+            ...product,
+            additives_tags: product.additives_tags || [],
+            additives_original_tags: product.additives_original_tags || [],
+          },
+          status: 1,
+          source: source,
+        });
+        setModalVisible(true);
+      }, 300);
+    } else {
+      setScannedProduct({
+        product: {
+          ...product,
+          additives_tags: product.additives_tags || [],
+          additives_original_tags: product.additives_original_tags || [],
+        },
+        status: 1,
+        source: source,
+      });
       setModalVisible(true);
-    }, 300);
+    }
   };
 
   const fetchProductInfo = async (barcode: string) => {
     try {
-      // Usar nuestro nuevo sistema de caché local
       const result = await fetchProductWithCache(barcode);
 
       if (result.product) {
-        // Si hay un mensaje indicando el origen del producto, mostrarlo brevemente
         if (result.source === "cache") {
-          // Producto obtenido de la caché local
           console.log(`Producto ${barcode} recuperado de la caché local`);
         } else {
-          // Producto obtenido de la API
           console.log(`Producto ${barcode} recuperado de OpenFoodFacts`);
         }
         return { product: result.product, source: result.source };
       } else {
-        Alert.alert(
-          "Producto no encontrado",
-          "Este producto no está disponible en la base de datos.",
-          [{ text: "OK", onPress: () => setScanned(false) }]
-        );
+        console.log(`Producto ${barcode} no encontrado`);
+        setScannerActive(true);
         return null;
       }
     } catch (error) {
       console.error("Error al obtener información del producto:", error);
-      Alert.alert(
-        "Error",
-        "No se pudo obtener la información del producto. Por favor, inténtalo de nuevo.",
-        [{ text: "OK", onPress: () => setScanned(false) }]
-      );
+      setScannerActive(true);
       return null;
     } finally {
       setLoading(false);
@@ -217,18 +200,17 @@ export default function ProductScanner() {
     type: string;
     data: string;
   }) => {
-    if (scanned) return;
-    setScanned(true);
+    if (!scannerActive || data === lastScannedBarcode) return;
+
+    setScannerActive(false);
     setLoading(true);
+    setLastScannedBarcode(data);
     setScannedBarcode(data);
 
     if (data.length < 8 || data.length > 13 || !/^\d+$/.test(data)) {
       setLoading(false);
-      Alert.alert(
-        "Código inválido",
-        "Por favor, escanea un código de barras válido.",
-        [{ text: "OK", onPress: () => setScanned(false) }]
-      );
+      console.log(`Código inválido: ${data}`);
+      setScannerActive(true);
       return;
     }
 
@@ -236,17 +218,20 @@ export default function ProductScanner() {
     if (response) {
       await updateScannedProduct(response.product, response.source);
     }
+
+    setLoading(false);
+    setTimeout(() => {
+      setScannerActive(true);
+    }, 1500);
   };
 
   const handleClose = () => {
     router.back();
   };
 
-  // Actualizado para el flujo informativo (solo consulta)
   const handleScanAgain = () => {
-    setScanned(false);
-    setScannedProduct(null);
-    setScannedBarcode("");
+    setLastScannedBarcode("");
+    setScannerActive(true);
   };
 
   if (hasPermission === null) {
@@ -281,7 +266,7 @@ export default function ProductScanner() {
       <View style={styles.container}>
         <BarCodeScanner
           style={StyleSheet.absoluteFillObject}
-          onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+          onBarCodeScanned={handleBarCodeScanned}
           barCodeTypes={[
             BarCodeScanner.Constants.BarCodeType.ean13,
             BarCodeScanner.Constants.BarCodeType.ean8,
@@ -306,6 +291,13 @@ export default function ProductScanner() {
                   <View style={[styles.cornerTR, styles.corner]} />
                   <View style={[styles.cornerBL, styles.corner]} />
                   <View style={[styles.cornerBR, styles.corner]} />
+                  {modalVisible && (
+                    <View style={styles.scannerActiveIndicator}>
+                      <Text style={styles.scannerActiveText}>
+                        Escáner activo
+                      </Text>
+                    </View>
+                  )}
                 </>
               )}
             </View>
@@ -313,7 +305,9 @@ export default function ProductScanner() {
           </View>
           <View style={styles.unfilled}>
             <Text style={styles.instructions}>
-              Alinea el código de barras dentro del recuadro para escanearlo
+              {modalVisible
+                ? "Escanea otro producto para cambiar"
+                : "Alinea el código de barras dentro del recuadro para escanearlo"}
             </Text>
           </View>
         </View>
@@ -325,23 +319,15 @@ export default function ProductScanner() {
           <Ionicons name="close-outline" size={50} color="white" />
         </TouchableOpacity>
 
-        {scanned && !loading && (
-          <TouchableOpacity
-            style={styles.rescanButton}
-            onPress={handleScanAgain}
-          >
-            <Text style={styles.rescanButtonText}>Escanear otro</Text>
-          </TouchableOpacity>
-        )}
-
         <ProductDetailsModal
           visible={modalVisible}
           onClose={() => {
             setModalVisible(false);
-            setScanned(false);
+            handleScanAgain();
           }}
           productData={scannedProduct}
           barcode={scannedBarcode}
+          initialHeight="30%"
         />
       </View>
     </GestureHandlerRootView>
@@ -472,112 +458,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+  scannerActiveIndicator: {
+    position: "absolute",
+    bottom: -30,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(109, 158, 190, 0.8)",
+    paddingVertical: 4,
+    borderRadius: 4,
   },
-  modalContent: {
-    width: "80%",
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 20,
-    alignItems: "center",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  productName: {
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  inputContainer: {
-    width: "100%",
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    marginBottom: 5,
-  },
-  dateInput: {
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    padding: 10,
-    fontSize: 16,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-  },
-  modalButton: {
-    flex: 1,
-    marginHorizontal: 5,
-    padding: 10,
-    borderRadius: 5,
-    alignItems: "center",
-  },
-  cancelButton: {
-    backgroundColor: "#ccc",
-  },
-  saveButton: {
-    backgroundColor: "#6D9EBE",
-  },
-  cancelButtonText: {
-    color: "#333",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  saveButtonText: {
+  scannerActiveText: {
     color: "white",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  deviceSelectorContent: {
-    width: "90%",
-    maxHeight: "80%",
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 20,
-  },
-  deviceList: {
-    maxHeight: "70%",
-  },
-  deviceItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e1e1e8",
-  },
-  deviceItemInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  deviceItemName: {
-    fontSize: 16,
+    fontSize: 12,
+    textAlign: "center",
     fontWeight: "bold",
-    color: "#333",
-  },
-  deviceItemCount: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 2,
-  },
-  cancelDeviceButton: {
-    marginTop: 15,
-    backgroundColor: "#f2f2f7",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ccc",
   },
 });

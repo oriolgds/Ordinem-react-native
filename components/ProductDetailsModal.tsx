@@ -85,6 +85,7 @@ interface ProductDetailsModalProps {
   onClose: () => void;
   productData: ProductData | null;
   barcode: string;
+  initialHeight?: string; // Nueva prop para controlar la altura inicial
 }
 
 // Lista de ejemplo de aditivos comunes y su nivel de riesgo
@@ -147,6 +148,7 @@ export function ProductDetailsModal({
   onClose,
   productData,
   barcode,
+  initialHeight = "75%", // Valor predeterminado si no se proporciona
 }: ProductDetailsModalProps) {
   const router = useRouter();
   const [useEcoScoreFallback, setUseEcoScoreFallback] = useState(false);
@@ -157,7 +159,7 @@ export function ProductDetailsModal({
   const [expandedRisk, setExpandedRisk] = useState<string | null>(null);
   const [showAllAdditives, setShowAllAdditives] = useState(false);
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["75%"], []);
+  const snapPoints = useMemo(() => [initialHeight], [initialHeight]);
 
   // Estado para seguir el estado de carga de las imágenes de score
   const [nutriScoreLoading, setNutriScoreLoading] = useState(true);
