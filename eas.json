@@ -19,12 +19,10 @@
         },
         "production": {
             "android": {
-                "buildType": "apk",
-                "autoIncrement": true
+                "buildType": "apk"
             },
             "ios": {
-                "distribution": "store",
-                "autoIncrement": true
+                "distribution": "store"
             }
         }
     },
