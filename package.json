@@ -2,6 +2,7 @@
   "name": "ordinem",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "homepage": "https://oriolgds.github.io/ordinem",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -14,7 +15,9 @@
     "build:android": "eas build --platform android --profile production",
     "build:android-local": "eas build --platform android --profile production --local",
     "workflow:run": "npx eas-cli workflow:run",
-    "workflow:android": "npx eas-cli workflow:run .eas/workflows/android-build.yml"
+    "workflow:android": "npx eas-cli workflow:run .eas/workflows/android-build.yml",
+    "predeploy": "expo export",
+    "deploy": "gh-pages -d dist"
   },
   "jest": {
     "preset": "jest-expo"
@@ -40,6 +43,7 @@
     "expo-dev-client": "^5.0.20",
     "expo-font": "~13.0.4",
     "expo-haptics": "~14.0.1",
+    "expo-linear-gradient": "~14.0.2",
     "expo-linking": "~7.0.5",
     "expo-notifications": "^0.29.14",
     "expo-router": "~4.0.20",
@@ -58,8 +62,7 @@
     "react-native-screens": "~4.4.0",
     "react-native-svg": "15.8.0",
     "react-native-web": "~0.19.13",
-    "react-native-webview": "13.12.5",
-    "expo-linear-gradient": "~14.0.2"
+    "react-native-webview": "13.12.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -68,6 +71,7 @@
     "@types/react-test-renderer": "^18.3.0",
     "babel-plugin-module-resolver": "^5.0.2",
     "eas-cli": "^16.3.2",
+    "gh-pages": "^6.3.0",
     "jest": "^29.2.1",
     "jest-expo": "~52.0.6",
     "react-test-renderer": "18.3.1",
