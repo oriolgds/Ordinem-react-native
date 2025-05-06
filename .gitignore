@@ -6,6 +6,7 @@ expo-env.d.ts
 node_modules
 node_modules
 /.expo
+/dist
 .expo/devices.json
 
 # Añadir carpetas nativas para usar correctamente Prebuild/CNG

@@ -1,7 +1,7 @@
 {
   "name": "ordinem",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://oriolgds.github.io/ordinem",
   "scripts": {
     "start": "expo start",
@@ -17,7 +17,8 @@
     "workflow:run": "npx eas-cli workflow:run",
     "workflow:android": "npx eas-cli workflow:run .eas/workflows/android-build.yml",
     "predeploy": "expo export",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "full-deploy": "npm run predeploy && npm run deploy"
   },
   "jest": {
     "preset": "jest-expo"
@@ -33,6 +34,7 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@react-navigation/stack": "^7.2.10",
+    "@firebase/auth-compat": "^0.5.7",
     "expo": "~52.0.46",
     "expo-auth-session": "^6.0.3",
     "expo-barcode-scanner": "^13.0.1",

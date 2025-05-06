@@ -8,9 +8,6 @@ import {
     signInAnonymously as firebaseSignInAnonymously,
     sendEmailVerification,
     sendPasswordResetEmail,
-    initializeAuth,
-    getReactNativePersistence,
-    signInWithCustomToken
 } from 'firebase/auth';
 import { getDatabase, ref, set, get, update, onValue } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,10 +26,8 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializar Auth con persistencia para React Native
-const auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage)
-});
+// Usar getAuth estándar en lugar de initializeAuth con persistencia personalizada
+const auth = getAuth(app);
 
 // Función para recargar la persistencia
 export const reloadAuthPersistence = async () => {
