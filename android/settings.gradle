@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'ordinem'
+rootProject.name = 'Ordinem'
 
 dependencyResolutionManagement {
   versionCatalogs {
