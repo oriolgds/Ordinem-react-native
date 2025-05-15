@@ -15,7 +15,7 @@
     "clean": "expo prebuild --clean",
     "build:android": "eas build --platform android --profile production",
     "build:android-local": "eas build --platform android --profile production --local",
-    "build:aab": "eas build --platform android --profile production --output=build.aab",
+    "build:aab": "eas build --platform android --profile production",
     "build:aab-local": "eas build --platform android --profile production --output=build.aab --local",
     "validate:bundle": "./scripts/validate-bundle.sh",
     "workflow:run": "npx eas-cli workflow:run",
