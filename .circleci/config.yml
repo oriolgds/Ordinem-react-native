@@ -8,52 +8,63 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
-      # Instalar JDK necesario para Android
+      
+      # Configurar Java para las builds de Android
       - run:
           name: Instalar JDK
           command: |
             sudo apt-get update
             sudo apt-get install -y openjdk-17-jdk
+      
       # Restaurar caché de node_modules
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "package-lock.json" }}
             - v1-dependencies-
+      
       # Instalar dependencias
       - run:
           name: Instalar dependencias
           command: npm ci
+      
       # Guardar caché de node_modules
       - save_cache:
           paths:
             - node_modules
           key: v1-dependencies-{{ checksum "package-lock.json" }}
-      # Instalar EAS CLI
+      
+      # Instalar EAS CLI (con sudo para permisos)
       - run:
           name: Instalar EAS CLI
-          command: npm install -g eas-cli
+          command: sudo npm install -g eas-cli
+      
       # Configurar token de Expo
       - run:
           name: Configurar Expo Token
           command: echo "export EXPO_TOKEN=${EXPO_TOKEN}" >> $BASH_ENV
+      
       # Verificar autenticación EAS
       - run:
           name: Verificar autenticación EAS
           command: npx eas whoami
+      
       # Modificar eas.json para AAB
       - run:
           name: Modificar configuración para AAB
           command: |
             sudo apt-get install -y jq
             jq '.build.production.android.buildType = "app-bundle"' eas.json > temp.json && mv temp.json eas.json
-      # Crear directorio para artefactos
+      
+      # Crear directorio para la salida
       - run:
           name: Crear directorio para artefactos
           command: mkdir -p ~/artifacts
+      
       # Build del AAB
       - run:
           name: Ejecutar build AAB
           command: npx eas build --platform android --profile production --local --non-interactive --output=~/artifacts/build-output.aab
+      
       # Guardar el AAB como artefacto
       - store_artifacts:
           path: ~/artifacts/build-output.aab
