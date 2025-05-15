@@ -14,8 +14,8 @@
 		96905EF65AED1B983A6B3ABC /* libPods-Ordinem.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 58EEBF8E8E6FB1BC6CAF49B5 /* libPods-Ordinem.a */; };
 		B18059E884C0ABDD17F3DC3D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		B98E9AFEF1664D9F840F0B4F /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = C05B6BC3ACAA41C48F937A97 /* GoogleService-Info.plist */; };
-		E45B48B2EB6D496D8581229C /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841DA51F911E44E1A16247D4 /* noop-file.swift */; };
+		1FE54BCE1E64401882F974B3 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 53C1657C248449709F0F3AD0 /* GoogleService-Info.plist */; };
+		4F57622775754AE9B576ABCE /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D076B2090474C8EB349DAE5 /* noop-file.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,9 +32,9 @@
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Ordinem/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		C05B6BC3ACAA41C48F937A97 /* GoogleService-Info.plist */ = {isa = PBXFileReference; name = "GoogleService-Info.plist"; path = "Ordinem/GoogleService-Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
-		841DA51F911E44E1A16247D4 /* noop-file.swift */ = {isa = PBXFileReference; name = "noop-file.swift"; path = "Ordinem/noop-file.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
-		1AB433A570754085AF52DBBF /* Ordinem-Bridging-Header.h */ = {isa = PBXFileReference; name = "Ordinem-Bridging-Header.h"; path = "Ordinem/Ordinem-Bridging-Header.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; explicitFileType = undefined; includeInIndex = 0; };
+		53C1657C248449709F0F3AD0 /* GoogleService-Info.plist */ = {isa = PBXFileReference; name = "GoogleService-Info.plist"; path = "Ordinem/GoogleService-Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
+		3D076B2090474C8EB349DAE5 /* noop-file.swift */ = {isa = PBXFileReference; name = "noop-file.swift"; path = "Ordinem/noop-file.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		BF7C0D9B3CD54E4595A3D076 /* Ordinem-Bridging-Header.h */ = {isa = PBXFileReference; name = "Ordinem-Bridging-Header.h"; path = "Ordinem/Ordinem-Bridging-Header.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,9 +59,9 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				13B07FB71A68108700A75B9A /* main.m */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				C05B6BC3ACAA41C48F937A97 /* GoogleService-Info.plist */,
-				841DA51F911E44E1A16247D4 /* noop-file.swift */,
-				1AB433A570754085AF52DBBF /* Ordinem-Bridging-Header.h */,
+				53C1657C248449709F0F3AD0 /* GoogleService-Info.plist */,
+				3D076B2090474C8EB349DAE5 /* noop-file.swift */,
+				BF7C0D9B3CD54E4595A3D076 /* Ordinem-Bridging-Header.h */,
 			);
 			name = Ordinem;
 			sourceTree = "<group>";
@@ -201,8 +201,8 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				B98E9AFEF1664D9F840F0B4F /* GoogleService-Info.plist in Resources */,
-				6C0FF359AC724610A0185037 /* Ordinem-Bridging-Header.h in Resources */,
+				1FE54BCE1E64401882F974B3 /* GoogleService-Info.plist in Resources */,
+				67610D34AFA74695A115ABD5 /* Ordinem-Bridging-Header.h in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,7 +278,7 @@
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				B18059E884C0ABDD17F3DC3D /* ExpoModulesProvider.swift in Sources */,
-				E45B48B2EB6D496D8581229C /* noop-file.swift in Sources */,
+				4F57622775754AE9B576ABCE /* noop-file.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
