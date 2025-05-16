@@ -13,10 +13,15 @@
     # pkgs.nodePackages.nodemon
     pkgs.nodejs_latest
     pkgs.zulu
+    pkgs.androidsdk
+    pkgs.androidndk
   ];
 
   # Sets environment variables in the workspace
-  env = {};
+  env = {
+    ANDROID_HOME = "${pkgs.androidsdk}/libexec";
+    PATH = "${pkgs.androidsdk}/libexec/tools/bin:${pkgs.androidsdk}/libexec/platform-tools:$PATH";
+  };
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
