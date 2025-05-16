@@ -12,6 +12,7 @@
     # pkgs.nodejs_20
     # pkgs.nodePackages.nodemon
     pkgs.nodejs_latest
+    pkgs.zulu
   ];
 
   # Sets environment variables in the workspace
