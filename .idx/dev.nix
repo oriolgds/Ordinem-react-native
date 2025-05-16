@@ -14,7 +14,6 @@
     pkgs.nodejs_latest
     pkgs.zulu
     pkgs.androidenv
-    pkgs.androidndk
     pkgs.android-tools
     pkgs.android-studio-tools
     pkgs.jdk17
@@ -22,10 +21,7 @@
   ];
 
   # Sets environment variables in the workspace
-  env = {
-    ANDROID_HOME = "${pkgs.androidenv}/libexec";
-    PATH = "${pkgs.androidenv}/libexec/tools/bin:${pkgs.androidenv}/libexec/platform-tools:$PATH";
-  };
+  
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
