@@ -15,6 +15,10 @@
     pkgs.zulu
     pkgs.androidsdk
     pkgs.androidndk
+    pkgs.android-tools
+    pkgs.android-studio-tools
+    pkgs.jdk17
+    pkgs.unzip
   ];
 
   # Sets environment variables in the workspace
