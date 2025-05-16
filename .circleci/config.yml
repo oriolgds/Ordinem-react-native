@@ -3,11 +3,40 @@ version: 2.1
 jobs:
   build-aab:
     docker:
-      - image: circleci/android:api-33-node
+      - image: cimg/node:18.18
     resource_class: large
     working_directory: ~/repo
     steps:
       - checkout
+      
+      # Configurar Java para las builds de Android
+      - run:
+          name: Instalar JDK
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y openjdk-17-jdk
+      
+      # Restaurar caché de node_modules
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "package-lock.json" }}
+            - v1-dependencies-
+      
+      # Instalar dependencias
+      - run:
+          name: Instalar dependencias
+          command: npm ci
+      
+      # Guardar caché de node_modules
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package-lock.json" }}
+      
+      # Instalar EAS CLI (con sudo para permisos)
+      - run:
+          name: Instalar EAS CLI
+          command: sudo npm install -g eas-cli
       
       # Configurar token de Expo
       - run:
@@ -18,7 +47,7 @@ jobs:
       - run:
           name: Verificar autenticación EAS
           command: npx eas whoami
-          
+      
       # Modificar eas.json para AAB
       - run:
           name: Modificar configuración para AAB
@@ -34,8 +63,7 @@ jobs:
       # Build del AAB
       - run:
           name: Ejecutar build AAB
-          command: |
-            npx eas build --platform android --profile production --local --non-interactive --output=~/artifacts/build-output.aab
+          command: npx eas build --platform android --profile production --local --non-interactive --output=~/artifacts/build-output.aab
       
       # Guardar el AAB como artefacto
       - store_artifacts:
