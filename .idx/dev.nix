@@ -12,16 +12,16 @@
     # pkgs.nodejs_20
     # pkgs.nodePackages.nodemon
     pkgs.nodejs_latest
-    pkgs.zulu
-    pkgs.androidenv
     pkgs.android-tools
     pkgs.android-studio-tools
     pkgs.jdk17
     pkgs.unzip
+    pkgs.cmake
+    pkgs.sudo
   ];
 
   # Sets environment variables in the workspace
-  
+
   idx = {
     # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
     extensions = [
@@ -32,16 +32,21 @@
     previews = {
       enable = true;
       previews = {
-        # web = {
-        #   # Example: run "npm run dev" with PORT set to IDX's defined port for previews,
-        #   # and show it in IDX's web preview panel
-        #   command = ["npm" "run" "dev"];
-        #   manager = "web";
-        #   env = {
-        #     # Environment variables to set for your server
-        #     PORT = "$PORT";
-        #   };
-        # };
+        web = {
+        command = [
+          "npm"
+          "run"
+          "start"
+          "--"
+          "--port"
+          "$PORT"
+        ];
+        manager = "web";
+      };
+        android = {
+          command = [ "npm" "run" "android" ];
+          manager = "android";
+        };
       };
     };
 
@@ -49,8 +54,12 @@
     workspace = {
       # Runs when a workspace is first created
       onCreate = {
+        android-sdk = "sudo apt update && sudo apt install android-sdk";
         # Example: install JS dependencies from NPM
-        # npm-install = "npm install";
+        npm-install = "npm install";
+        eas-cli-install = "npm install -g eas-cli";
+        prebuild = "npm run prebuild -- --clean";
+
       };
       # Runs when the workspace is (re)started
       onStart = {
@@ -60,3 +69,4 @@
     };
   };
 }
+
