@@ -33,10 +33,10 @@ jobs:
             - node_modules
           key: v1-dependencies-{{ checksum "package-lock.json" }}
       
-      # Instalar EAS CLI
+      # Instalar EAS CLI (con sudo para permisos)
       - run:
           name: Instalar EAS CLI
-          command: npm install -g eas-cli
+          command: sudo npm install -g eas-cli
       
       # Configurar token de Expo
       - run:
