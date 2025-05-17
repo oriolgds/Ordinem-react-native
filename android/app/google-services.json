@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "447748932648-2hel29rgdkv1kr11u5rttgrfcln2tolv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ordinem.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
           "client_id": "447748932648-kvtr32hsvn7h2n612ujjj6alcso1v3l0.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
