@@ -1,7 +1,7 @@
 {
   "name": "ordinem",
   "main": "expo-router/entry",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "homepage": "https://oriolgds.github.io/ordinem",
   "scripts": {
     "start": "expo start",
@@ -12,7 +12,7 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "clean": "expo prebuild --clean",
+    "prebuild-clean": "expo prebuild --clean",
     "build:android": "eas build --platform android --profile production",
     "build:android-local": "eas build --platform android --profile production --local",
     "build:aab": "eas build --platform android --profile production",
