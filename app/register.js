@@ -138,11 +138,23 @@ const Register = () => {
     const handleGoogleSignIn = async (idToken) => {
         try {
             setLoading(true);
+
+            if (!idToken) {
+                throw new Error('Token de ID no válido');
+            }
+
+            console.log('Intentando autenticación con Firebase usando token de Google');
             await signInWithGoogle(idToken);
-            router.replace('/');
+            router.replace('/(tabs)/products');
         } catch (error) {
             console.error('Error al iniciar sesión con Google:', error);
-            Alert.alert('Error de autenticación', 'No se pudo iniciar sesión con Google');
+            let errorMessage = 'No se pudo iniciar sesión con Google';
+
+            if (error.code === 'auth/invalid-credential') {
+                errorMessage = 'Credencial de Google inválida. Por favor, intenta de nuevo.';
+            }
+
+            Alert.alert('Error de autenticación', errorMessage);
         } finally {
             setLoading(false);
         }

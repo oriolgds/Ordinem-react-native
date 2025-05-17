@@ -107,12 +107,25 @@ export const createUserWithEmail = async (email, password, name) => {
 
 export const signInWithGoogle = async (idToken) => {
     try {
+        console.log('Iniciando autenticación con Google, token recibido:', idToken ? 'Token válido' : 'Token no válido');
+
+        if (!idToken) {
+            throw new Error('No se proporcionó un token de ID válido');
+        }
+
         // Crear credencial para Google
         const credential = GoogleAuthProvider.credential(idToken);
 
         // Iniciar sesión con las credenciales
         const userCredential = await signInWithCredential(auth, credential);
         const user = userCredential.user;
+
+        console.log('Usuario autenticado con Firebase:', user);
+
+        // Obtener un token fresco para sesión
+        const token = await user.getIdToken(true);
+
+        console.log('Token fresco obtenido:', token);
 
         // Comprobar si el usuario ya existe en la base de datos
         const userRef = ref(database, `users/${user.uid}`);
@@ -133,15 +146,25 @@ export const signInWithGoogle = async (idToken) => {
         }
 
         // Guardar información adicional en AsyncStorage para persistencia adicional
-        await AsyncStorage.setItem('user_credential', JSON.stringify({
+        const userData = {
             uid: user.uid,
             email: user.email,
             emailVerified: user.emailVerified,
             displayName: user.displayName,
-        }));
+            token: token,
+            lastLoginAt: new Date().toISOString()
+        };
+
+        await AsyncStorage.setItem('user_credential', JSON.stringify(userData));
+        await AsyncStorage.setItem('userToken', token);
 
         return user;
     } catch (error) {
+        console.error('Error en signInWithGoogle:', error.code, error.message);
+        // Agregar información de depuración específica para errores de Google
+        if (error.code === 'auth/invalid-credential') {
+            console.error('Credencial inválida. El token podría haber expirado o ser incorrecto.');
+        }
         throw error;
     }
 };

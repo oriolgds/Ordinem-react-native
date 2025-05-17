@@ -62,7 +62,7 @@ const Login = () => {
     useEffect(() => {
         if (!isExpoGo && Googlesignin) {
             Googlesignin.configure({
-                webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+                webClientId: '447748932648-neou63uloe2lon48o24si90vc0j9osda.apps.googleusercontent.com',
             });
         }
     }, []);
@@ -132,7 +132,6 @@ const Login = () => {
         try {
             setLoading(true);
 
-            // Si estamos en Expo Go, mostramos un mensaje
             if (isExpoGo) {
                 Alert.alert(
                     'No disponible en Expo Go',
@@ -142,16 +141,28 @@ const Login = () => {
                 return;
             }
 
-            // Si Google SignIn está disponible, lo usamos
             if (Googlesignin) {
-                await Googlesignin.hasPlayServices();
-                const userInfo = await Googlesignin.signIn();
+                console.log('Iniciando flujo de autenticación con Google');
 
-                // Pasar el idToken a Firebase para autenticar
-                if (userInfo.idToken) {
-                    await signInWithGoogle(userInfo.idToken);
+                await Googlesignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+                try {
+                    await Googlesignin.signOut();
+                } catch (signOutError) {
+                    console.log('No había sesión previa de Google', signOutError);
+                }
+
+                const userInfo = await Googlesignin.signIn();
+                console.log('Autenticación exitosa, obteniendo token ID:', userInfo);
+
+                // El token está dentro de userInfo.data.idToken (según el log)
+                if (userInfo.data && userInfo.data.idToken) {
+                    console.log('Token obtenido, autenticando con Firebase:', userInfo.data.idToken);
+                    await signInWithGoogle(userInfo.data.idToken);
+                    console.log('Autenticación con Firebase exitosa');
                     router.replace('/(tabs)/products');
                 } else {
+                    console.error('No se pudo obtener el token de ID del flujo de Google Sign-In');
                     throw new Error('No se pudo obtener el token de ID');
                 }
             } else {
@@ -161,17 +172,26 @@ const Login = () => {
             console.error('Error al iniciar sesión con Google:', error);
 
             let errorMessage = 'No se pudo iniciar sesión con Google';
-            if (Googlesignin && statusCodes) {
+            let errorDescription = '';
+
+            if (error.code === 'DEVELOPER_ERROR') {
+                errorMessage = 'Error de configuración de Google';
+                errorDescription = 'Hay un problema con la configuración de autenticación de Google. Verifica que la huella digital SHA-1 está correctamente registrada en la consola de Firebase.';
+            } else if (Googlesignin && statusCodes) {
                 if (error.code === statusCodes.SIGN_IN_CANCELLED) {
                     errorMessage = 'Inicio de sesión cancelado';
                 } else if (error.code === statusCodes.IN_PROGRESS) {
                     errorMessage = 'Inicio de sesión en progreso';
                 } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
                     errorMessage = 'Google Play Services no está disponible';
+                    errorDescription = 'Asegúrate de tener instalada la última versión de Google Play Services.';
                 }
             }
 
-            Alert.alert('Error de autenticación', errorMessage);
+            Alert.alert(
+                errorMessage,
+                errorDescription || error.message || 'Por favor, intenta con otro método de inicio de sesión'
+            );
         } finally {
             setLoading(false);
         }
