@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import {
     getAuth,
+    initializeAuth,
+    getReactNativePersistence,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     signInWithCredential,
@@ -26,10 +28,12 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Usar getAuth estándar en lugar de initializeAuth con persistencia personalizada
-const auth = getAuth(app);
+// Inicializar Auth con persistencia para React Native
+const auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage)
+});
 
-// Función para recargar la persistencia
+// Función para recargar la persistencia (ya no es necesaria pero se mantiene por compatibilidad)
 export const reloadAuthPersistence = async () => {
     try {
         if (auth._persistenceManager) {
