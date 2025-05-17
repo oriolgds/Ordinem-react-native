@@ -62,7 +62,7 @@ const Login = () => {
     useEffect(() => {
         if (!isExpoGo && Googlesignin) {
             Googlesignin.configure({
-                webClientId: '447748932648-a1r4j0tukmc7cfd1pbdg2tav9hl6aqic.apps.googleusercontent.com',
+                webClientId: '447748932648-neou63uloe2lon48o24si90vc0j9osda.apps.googleusercontent.com',
             });
         }
     }, []);
@@ -132,7 +132,6 @@ const Login = () => {
         try {
             setLoading(true);
 
-            // Si estamos en Expo Go, mostramos un mensaje
             if (isExpoGo) {
                 Alert.alert(
                     'No disponible en Expo Go',
@@ -142,16 +141,28 @@ const Login = () => {
                 return;
             }
 
-            // Si Google SignIn está disponible, lo usamos
             if (Googlesignin) {
-                await Googlesignin.hasPlayServices();
-                const userInfo = await Googlesignin.signIn();
+                console.log('Iniciando flujo de autenticación con Google');
 
-                // Pasar el idToken a Firebase para autenticar
-                if (userInfo.idToken) {
-                    await signInWithGoogle(userInfo.idToken);
+                await Googlesignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+                try {
+                    await Googlesignin.signOut();
+                } catch (signOutError) {
+                    console.log('No había sesión previa de Google', signOutError);
+                }
+
+                const userInfo = await Googlesignin.signIn();
+                console.log('Autenticación exitosa, obteniendo token ID:', userInfo);
+
+                // El token está dentro de userInfo.data.idToken (según el log)
+                if (userInfo.data && userInfo.data.idToken) {
+                    console.log('Token obtenido, autenticando con Firebase:', userInfo.data.idToken);
+                    await signInWithGoogle(userInfo.data.idToken);
+                    console.log('Autenticación con Firebase exitosa');
                     router.replace('/(tabs)/products');
                 } else {
+                    console.error('No se pudo obtener el token de ID del flujo de Google Sign-In');
                     throw new Error('No se pudo obtener el token de ID');
                 }
             } else {
@@ -161,17 +172,26 @@ const Login = () => {
             console.error('Error al iniciar sesión con Google:', error);
 
             let errorMessage = 'No se pudo iniciar sesión con Google';
-            if (Googlesignin && statusCodes) {
+            let errorDescription = '';
+
+            if (error.code === 'DEVELOPER_ERROR') {
+                errorMessage = 'Error de configuración de Google';
+                errorDescription = 'Hay un problema con la configuración de autenticación de Google. Verifica que la huella digital SHA-1 está correctamente registrada en la consola de Firebase.';
+            } else if (Googlesignin && statusCodes) {
                 if (error.code === statusCodes.SIGN_IN_CANCELLED) {
                     errorMessage = 'Inicio de sesión cancelado';
                 } else if (error.code === statusCodes.IN_PROGRESS) {
                     errorMessage = 'Inicio de sesión en progreso';
                 } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
                     errorMessage = 'Google Play Services no está disponible';
+                    errorDescription = 'Asegúrate de tener instalada la última versión de Google Play Services.';
                 }
             }
 
-            Alert.alert('Error de autenticación', errorMessage);
+            Alert.alert(
+                errorMessage,
+                errorDescription || error.message || 'Por favor, intenta con otro método de inicio de sesión'
+            );
         } finally {
             setLoading(false);
         }
@@ -230,20 +250,21 @@ const Login = () => {
                     onPress={handleGoogleSignIn}
                     disabled={loading}
                 >
-                    <Ionicons name="logo-google" size={24} color="#DB4437" style={styles.googleIcon} />
+                    <Ionicons name="logo-google" size={24} color="white" style={styles.googleIcon} />
                     <Text style={styles.googleButtonText}>Continuar con Google</Text>
                 </TouchableOpacity>
             );
         } else {
-            // Botón nativo para Development Build
+            // Usar botón personalizado en lugar del nativo para mantener consistencia visual
             return (
-                <GoogleSigninButton
-                    style={styles.googleSigninButton}
-                    size={GoogleSigninButton.Size.Wide}
-                    color={GoogleSigninButton.Color.Light}
+                <TouchableOpacity
+                    style={styles.googleButton}
                     onPress={handleGoogleSignIn}
                     disabled={loading}
-                />
+                >
+                    <Ionicons name="logo-google" size={24} color="white" style={styles.googleIcon} />
+                    <Text style={styles.googleButtonText}>Continuar con Google</Text>
+                </TouchableOpacity>
             );
         }
     };
@@ -324,16 +345,18 @@ const Login = () => {
                                 <View style={styles.separator} />
                             </View>
 
-                            {renderGoogleButton()}
+                            {!loading && renderGoogleButton()}
 
-                            <TouchableOpacity
-                                style={styles.anonymousButton}
-                                onPress={handleAnonymousSignIn}
-                                disabled={loading}
-                            >
-                                <Ionicons name="person-outline" size={24} color="#555" style={styles.socialIcon} />
-                                <Text style={styles.anonymousButtonText}>Continuar como anónimo</Text>
-                            </TouchableOpacity>
+                            {!loading && (
+                                <TouchableOpacity
+                                    style={styles.anonymousButton}
+                                    onPress={handleAnonymousSignIn}
+                                    disabled={loading}
+                                >
+                                    <Ionicons name="person-outline" size={24} color="white" style={styles.socialIcon} />
+                                    <Text style={styles.anonymousButtonText}>Continuar como anónimo</Text>
+                                </TouchableOpacity>
+                            )}
 
                             <TouchableOpacity
                                 style={styles.registerLink}
@@ -480,53 +503,52 @@ const styles = StyleSheet.create({
     },
     googleSigninButton: {
         width: '100%',
-        height: 48,
+        height: 50,
         marginVertical: 8,
+        borderRadius: 12,
+        elevation: 4,
+        overflow: 'hidden', // Para asegurar que el borderRadius se aplique correctamente
     },
     googleButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        paddingVertical: 12,
+        backgroundColor: '#DB4437',
+        borderRadius: 12,
+        height: 50,
         marginVertical: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
+        shadowColor: '#DB4437',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
     },
     googleIcon: {
         marginRight: 10,
     },
     googleButtonText: {
         fontSize: 16,
-        color: '#444',
-        fontWeight: '500',
+        color: 'white',
+        fontWeight: '600',
     },
     anonymousButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f5f5f5',
-        borderWidth: 1,
-        borderColor: '#e0e0e0',
-        borderRadius: 8,
-        paddingVertical: 12,
+        backgroundColor: '#555',
+        borderRadius: 12,
+        height: 50,
         marginVertical: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
+        shadowColor: '#555',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
     },
     anonymousButtonText: {
         fontSize: 16,
-        color: '#444',
-        fontWeight: '500',
+        color: 'white',
+        fontWeight: '600',
     },
 });
 
