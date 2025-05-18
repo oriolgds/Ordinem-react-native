@@ -17,6 +17,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { generateRecipe } from "@/src/services/cloudflareAI";
 import { useProducts } from "@/hooks/useProducts";
 import { fetchProductWithCache } from "@/services/cacheService"; // Importar el servicio de caché
+import LoadingRecipeModal from "@/components/LoadingRecipeModal";
+import MarkdownRecipe from "@/components/MarkdownRecipe";
 
 const COMMON_FRESH_PRODUCTS = [
   { id: "tomate", name: "Tomate", emoji: "🍅" },
@@ -62,6 +64,9 @@ export default function RecipeGeneratorScreen() {
   const [selectedFreshProducts, setSelectedFreshProducts] = useState<string[]>(
     []
   );
+
+  // Estado adicional para controlar el modal de carga
+  const [showLoadingModal, setShowLoadingModal] = useState(false);
 
   // Opciones de tiempo
   const timeOptions = [
@@ -120,6 +125,7 @@ export default function RecipeGeneratorScreen() {
     setIsLoading(true);
     setError("");
     setRecipeResult("");
+    setShowLoadingModal(true); // Mostrar modal de carga
 
     try {
       // Procesar la lista de ingredientes
@@ -148,6 +154,7 @@ export default function RecipeGeneratorScreen() {
           "Por favor, selecciona algunos productos o añade ingredientes frescos"
         );
         setIsLoading(false);
+        setShowLoadingModal(false);
         return;
       }
 
@@ -163,6 +170,7 @@ export default function RecipeGeneratorScreen() {
       setError(`Error al generar la receta: ${error.message}`);
     } finally {
       setIsLoading(false);
+      setShowLoadingModal(false);
     }
   };
 
@@ -504,10 +512,14 @@ export default function RecipeGeneratorScreen() {
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
+            {/* Modal de carga con frases aleatorias */}
+            <LoadingRecipeModal visible={showLoadingModal} />
+
             {recipeResult ? (
               <View style={styles.resultContainer}>
                 <Text style={styles.resultTitle}>Tu Receta</Text>
-                <Text style={styles.recipeText}>{recipeResult}</Text>
+                {/* Usar nuestro componente de Markdown para mostrar la receta */}
+                <MarkdownRecipe content={recipeResult} />
               </View>
             ) : null}
           </View>
@@ -517,6 +529,7 @@ export default function RecipeGeneratorScreen() {
   );
 }
 
+// Actualizar los estilos si es necesario
 const styles = StyleSheet.create({
   container: {
     flex: 1,
