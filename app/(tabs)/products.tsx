@@ -421,9 +421,11 @@ export default function ProductsScreen() {
           if (item.barcode && productsOFFData[item.barcode]) {
             const offData = productsOFFData[item.barcode];
 
-            // Usar el nombre de OpenFoodFacts si está disponible
-            if (offData.product_name) {
-              enrichedProduct.name = offData.product_name;
+            // Usar el nombre de OpenFoodFacts si está disponible y no es vacío
+            if (offData.product_name && offData.product_name.trim()) {
+              enrichedProduct.name = offData.product_name.trim();
+            } else if (offData.generic_name && offData.generic_name.trim()) {
+              enrichedProduct.name = offData.generic_name.trim();
             }
 
             // Usar la imagen de OpenFoodFacts si está disponible

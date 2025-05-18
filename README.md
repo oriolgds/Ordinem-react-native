@@ -33,7 +33,7 @@ Aplicación móvil inteligente construida con React Native y Expo que permite ge
 - **Detección automática de productos** mediante IA en los armarios conectados
 - **Escaneo de códigos QR** para vincular rápidamente dispositivos
 - **Visualización de productos** en tiempo real desde los armarios conectados
-- **Información nutricional detallada** con datos de OpenFoodFacts
+- **Información nutricional detallada** con datos de OpenFoodFacts (con sistema de caché local)
 - **Sistema de notificaciones** para productos próximos a caducar
 - **Filtros inteligentes** por categorías, fechas de caducidad y valores nutricionales
 - **Modo oscuro** y preferencias personalizables

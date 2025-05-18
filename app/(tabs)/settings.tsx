@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,11 +9,15 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUserProfile, updateUserSettings, signOut } from '@/services/firebase';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  getUserProfile,
+  updateUserSettings,
+  signOut,
+} from "@/services/firebase";
 
 // Componente para opciones de configuración
 const SettingItem = ({ icon, title, subtitle, onPress, rightComponent }) => (
@@ -37,9 +41,7 @@ const SettingItem = ({ icon, title, subtitle, onPress, rightComponent }) => (
 const SettingSection = ({ title, children }) => (
   <View style={styles.section}>
     <Text style={styles.sectionTitle}>{title}</Text>
-    <View style={styles.sectionContent}>
-      {children}
-    </View>
+    <View style={styles.sectionContent}>{children}</View>
   </View>
 );
 
@@ -58,16 +60,16 @@ export default function SettingsScreen() {
     try {
       const userProfile = await getUserProfile();
       setUser(userProfile);
-      
+
       // Cargar configuración de notificaciones
-      const storedSettings = await AsyncStorage.getItem('userSettings');
+      const storedSettings = await AsyncStorage.getItem("userSettings");
       if (storedSettings) {
         setSettings(JSON.parse(storedSettings));
       }
-      
+
       setLoading(false);
     } catch (error) {
-      console.error('Error al cargar perfil de usuario:', error);
+      console.error("Error al cargar perfil de usuario:", error);
       setLoading(false);
     }
   };
@@ -82,46 +84,42 @@ export default function SettingsScreen() {
     try {
       const newSettings = { ...settings, [key]: value };
       setSettings(newSettings);
-      await AsyncStorage.setItem('userSettings', JSON.stringify(newSettings));
+      await AsyncStorage.setItem("userSettings", JSON.stringify(newSettings));
       await updateUserSettings(newSettings);
     } catch (error) {
-      console.error('Error al actualizar configuración:', error);
-      Alert.alert('Error', 'No se pudo actualizar la configuración');
+      console.error("Error al actualizar configuración:", error);
+      Alert.alert("Error", "No se pudo actualizar la configuración");
     }
   };
 
   // Manejar cierre de sesión
   const handleSignOut = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Estás seguro de que deseas cerrar sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Cerrar sesión', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-              router.replace('/');
-            } catch (error) {
-              console.error('Error al cerrar sesión:', error);
-              Alert.alert('Error', 'No se pudo cerrar sesión');
-            }
+    Alert.alert("Cerrar sesión", "¿Estás seguro de que deseas cerrar sesión?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Cerrar sesión",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await signOut();
+            router.replace("/");
+          } catch (error) {
+            console.error("Error al cerrar sesión:", error);
+            Alert.alert("Error", "No se pudo cerrar sesión");
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
   };
 
   // Navegación a perfil
   const navigateToProfile = () => {
-    router.push('/profile');
+    router.push("/profile");
   };
 
   // Navegación a dispositivos
   const navigateToDevices = () => {
-    router.push('/devices');
+    router.push("/devices");
   };
 
   if (loading) {
@@ -138,13 +136,18 @@ export default function SettingsScreen() {
       <View style={styles.profileCard}>
         <View style={styles.avatarContainer}>
           {user?.photoURL ? (
-            <Image source={{ uri: user.photoURL }} style={styles.profileImage} />
+            <Image
+              source={{ uri: user.photoURL }}
+              style={styles.profileImage}
+            />
           ) : (
             <Ionicons name="person" size={36} color="#6D9EBE" />
           )}
         </View>
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{user?.displayName || 'Usuario'}</Text>
+          <Text style={styles.profileName}>
+            {user?.displayName || "Usuario"}
+          </Text>
           <Text style={styles.profileEmail}>{user?.email}</Text>
         </View>
         <TouchableOpacity style={styles.editButton} onPress={navigateToProfile}>
@@ -161,9 +164,11 @@ export default function SettingsScreen() {
           rightComponent={
             <Switch
               value={settings.notifyExpiringSoon}
-              onValueChange={(value) => updateNotificationSettings('notifyExpiringSoon', value)}
-              trackColor={{ false: '#E1E1E8', true: '#A7C7DC' }}
-              thumbColor={settings.notifyExpiringSoon ? '#6D9EBE' : '#FFF'}
+              onValueChange={(value) =>
+                updateNotificationSettings("notifyExpiringSoon", value)
+              }
+              trackColor={{ false: "#E1E1E8", true: "#A7C7DC" }}
+              thumbColor={settings.notifyExpiringSoon ? "#6D9EBE" : "#FFF"}
             />
           }
         />
@@ -174,9 +179,11 @@ export default function SettingsScreen() {
           rightComponent={
             <Switch
               value={settings.notifyExpired}
-              onValueChange={(value) => updateNotificationSettings('notifyExpired', value)}
-              trackColor={{ false: '#E1E1E8', true: '#A7C7DC' }}
-              thumbColor={settings.notifyExpired ? '#6D9EBE' : '#FFF'}
+              onValueChange={(value) =>
+                updateNotificationSettings("notifyExpired", value)
+              }
+              trackColor={{ false: "#E1E1E8", true: "#A7C7DC" }}
+              thumbColor={settings.notifyExpired ? "#6D9EBE" : "#FFF"}
             />
           }
         />
@@ -187,9 +194,11 @@ export default function SettingsScreen() {
           rightComponent={
             <Switch
               value={settings.notifyNewDevice}
-              onValueChange={(value) => updateNotificationSettings('notifyNewDevice', value)}
-              trackColor={{ false: '#E1E1E8', true: '#A7C7DC' }}
-              thumbColor={settings.notifyNewDevice ? '#6D9EBE' : '#FFF'}
+              onValueChange={(value) =>
+                updateNotificationSettings("notifyNewDevice", value)
+              }
+              trackColor={{ false: "#E1E1E8", true: "#A7C7DC" }}
+              thumbColor={settings.notifyNewDevice ? "#6D9EBE" : "#FFF"}
             />
           }
         />
@@ -226,17 +235,17 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: "#F2F2F7",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
     padding: 20,
     marginBottom: 20,
   },
@@ -244,9 +253,9 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#E1E1E8',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#E1E1E8",
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileImage: {
     width: 60,
@@ -259,51 +268,51 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F1F3C',
+    fontWeight: "bold",
+    color: "#1F1F3C",
     marginBottom: 4,
   },
   profileEmail: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   editButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F2F2F7',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F2F2F7",
+    justifyContent: "center",
+    alignItems: "center",
   },
   section: {
     marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 14,
-    color: '#6D9EBE',
-    fontWeight: '600',
+    color: "#6D9EBE",
+    fontWeight: "600",
     marginLeft: 16,
     marginBottom: 8,
   },
   sectionContent: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
+    borderBottomColor: "#F2F2F7",
   },
   settingIconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F2F2F7',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#F2F2F7",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 16,
   },
   settingContent: {
@@ -311,22 +320,22 @@ const styles = StyleSheet.create({
   },
   settingTitle: {
     fontSize: 16,
-    color: '#1F1F3C',
+    color: "#1F1F3C",
     marginBottom: 4,
   },
   settingSubtitle: {
     fontSize: 12,
-    color: '#999',
+    color: "#999",
   },
   settingAction: {
     marginLeft: 16,
   },
   appInfo: {
-    alignItems: 'center',
+    alignItems: "center",
     marginVertical: 30,
   },
   version: {
     fontSize: 12,
-    color: '#999',
+    color: "#999",
   },
-}); 
+});
