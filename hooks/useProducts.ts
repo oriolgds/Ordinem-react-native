@@ -84,23 +84,52 @@ export function useProducts() {
         const deviceProducts = await getDeviceProducts(selectedDevice);
 
         // Transformar a formato compatible
-        const formattedProducts = deviceProducts.map((product) => ({
-          id: product.barcode,
-          name:
-            product.product_name ||
-            product.name ||
-            `Producto ${product.barcode.slice(-4)}`,
-          category: product.category || "",
-          expiryDate: product.expiry_date || "",
-          barcode: product.barcode,
-          location: "Armario principal",
-          quantity: 1,
-          deviceId: selectedDevice,
-          last_detected: product.last_detected,
-          brand: product.brand || "",
-          imageUrl: product.image_url || "",
-          notes: product.notes || "",
-        }));
+        const formattedProducts = deviceProducts.map((product) => {
+          // Intentar obtener el mejor nombre posible para el producto
+          let productName = "Producto sin nombre";
+
+          if (product.product_name && product.product_name.trim()) {
+            productName = product.product_name.trim();
+          } else if (product.name && product.name.trim()) {
+            productName = product.name.trim();
+          } else if (product.barcode) {
+            // Si no hay nombre, intentar obtenerlo de OpenFoodFacts
+            getProductFromCache(product.barcode)
+              .then((offProduct) => {
+                if (offProduct?.product_name) {
+                  // Actualizar el nombre del producto si lo encontramos
+                  const updatedProduct = products.find(
+                    (p) => p.id === product.barcode
+                  );
+                  if (updatedProduct) {
+                    updatedProduct.name = offProduct.product_name;
+                    setProducts([...products]); // Forzar actualización
+                  }
+                }
+              })
+              .catch((err) =>
+                console.log("Error al obtener nombre de producto:", err)
+              );
+
+            // Mientras tanto, usar un placeholder mejorado
+            productName = `Producto ${product.barcode.slice(-6)}`;
+          }
+
+          return {
+            id: product.barcode,
+            name: productName,
+            category: product.category || "",
+            expiryDate: product.expiry_date || "",
+            barcode: product.barcode,
+            location: "Armario principal",
+            quantity: 1,
+            deviceId: selectedDevice,
+            last_detected: product.last_detected,
+            brand: product.brand || "",
+            imageUrl: product.image_url || "",
+            notes: product.notes || "",
+          };
+        });
 
         setProducts(formattedProducts);
       }

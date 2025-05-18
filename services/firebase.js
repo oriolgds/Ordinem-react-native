@@ -269,31 +269,70 @@ export const pairDevice = async (userId, deviceId) => {
 
 export const getProductFromCache = async (barcode) => {
     try {
-        const productRef = ref(database, `product_cache/${barcode}`);
+        // Intentar obtener el producto de Firebase primero
+        const db = getDatabase();
+        const productRef = ref(db, `products/${barcode}`);
         const snapshot = await get(productRef);
 
         if (snapshot.exists()) {
-            const cachedData = snapshot.val();
-            // Verificar si los datos en caché son recientes (menos de 30 días)
-            const now = Date.now();
-            const cacheTime = cachedData.cached_at || 0;
-            const cacheAge = (now - cacheTime) / (1000 * 60 * 60 * 24); // edad en días
-
-            if (cacheAge < 30) {
-                console.log(`Usando datos en caché para ${barcode} (${cacheAge.toFixed(1)} días)`);
-                return cachedData.product;
-            } else {
-                console.log(`Datos en caché para ${barcode} expirados (${cacheAge.toFixed(1)} días)`);
-                return null;
-            }
+            // Si existe en Firebase, devolvemos los datos
+            return snapshot.val();
         } else {
+            // Si no existe en Firebase, usamos el servicio de caché para consultar OpenFoodFacts
+            const { fetchProductWithCache } = require('./cacheService');
+            const productData = await fetchProductWithCache(barcode);
+
+            if (productData && productData.product) {
+                // Convertir los datos al formato esperado
+                return {
+                    barcode: barcode,
+                    product_name: productData.product.product_name,
+                    name: productData.product.product_name, // Duplicamos para asegurar compatibilidad
+                    brand: productData.product.brands,
+                    category: productData.product.categories_tags ?
+                        getCategoryFromTags(productData.product.categories_tags) :
+                        "Otros",
+                    image_url: productData.product.image_url,
+                    // Otros campos relevantes de OpenFoodFacts
+                    source: productData.source
+                };
+            }
             return null;
         }
     } catch (error) {
-        console.error('Error al obtener producto de la caché:', error);
+        console.error("Error al obtener el producto de la caché:", error);
         return null;
     }
 };
+
+// Función auxiliar para extraer una categoría legible de las etiquetas de categorías
+const getCategoryFromTags = (categoriesTags) => {
+    // Mapeo de categorías principales
+    const categoryMap = {
+        'beverages': 'Bebidas',
+        'snacks': 'Dulces y snacks',
+        'dairy': 'Lácteos',
+        'cereals': 'Cereales',
+        'meat': 'Carnes',
+        'fish': 'Pescados',
+        'vegetables': 'Verduras',
+        'fruits': 'Frutas',
+        'breakfast': 'Desayunos',
+        'condiments': 'Condimentos',
+        'frozen': 'Congelados'
+    };
+
+    // Buscar la primera categoría reconocible
+    for (const tag of categoriesTags) {
+        for (const key in categoryMap) {
+            if (tag.includes(key)) {
+                return categoryMap[key];
+            }
+        }
+    }
+
+    return "Otros";
+}
 
 export const saveProductToCache = async (barcode, productData) => {
     try {

@@ -7,6 +7,7 @@ import AppNavigator from './navigation/AppNavigator';
 import { initNotifications } from './services/notifications';
 import { LogBox } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NavigationContainer } from '@react-navigation/native';
 
 // Ignorar advertencias específicas
 LogBox.ignoreLogs([
@@ -14,6 +15,9 @@ LogBox.ignoreLogs([
     'Cannot find native module', // Ignorar advertencias del módulo nativo
     'The route files', // Ignorar advertencias de rutas
 ]);
+
+// Import our new screen
+import RecipeGeneratorScreen from './src/screens/RecipeGeneratorScreen';
 
 // Punto de entrada de la aplicación
 export default function App() {
@@ -58,8 +62,10 @@ export default function App() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaProvider>
-                <StatusBar style="auto" />
-                <AppNavigator />
+                <NavigationContainer>
+                    <StatusBar style="auto" />
+                    <AppNavigator />
+                </NavigationContainer>
             </SafeAreaProvider>
         </GestureHandlerRootView>
     );

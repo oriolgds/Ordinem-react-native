@@ -14,6 +14,7 @@ import ProductDetails from '../app/ProductDetails';
 import QRScanner from '../app/QRScanner';
 import Notifications from '../app/Notifications';
 import Settings from '../app/Settings';
+import RecipeGeneratorScreen from '../src/screens/RecipeGeneratorScreen';
 
 // Crear navegadores
 const Stack = createStackNavigator();
@@ -172,6 +173,23 @@ const AppNavigator = () => {
                                 title: 'Detalles del Producto',
                                 headerTitleAlign: 'center',
                                 headerBackTitleVisible: false,
+                                headerTintColor: '#6D9EBE',
+                                headerStyle: {
+                                    backgroundColor: 'white',
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.05,
+                                    shadowRadius: 2,
+                                    elevation: 1,
+                                }
+                            }}
+                        />
+                        <Stack.Screen
+                            name="RecipeGenerator"
+                            component={RecipeGeneratorScreen}
+                            options={{
+                                title: 'Generador de Recetas',
+                                headerTitleAlign: 'center',
                                 headerTintColor: '#6D9EBE',
                                 headerStyle: {
                                     backgroundColor: 'white',
