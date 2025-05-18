@@ -165,7 +165,18 @@ export default function RecipeGeneratorScreen() {
       };
 
       const result = await generateRecipe(allIngredients, preferences);
-      setRecipeResult(result);
+
+      // En vez de actualizar el estado local, navegamos a la nueva página
+      router.push({
+        pathname: "/recipe-viewer",
+        params: {
+          recipe: encodeURIComponent(result),
+          ingredients: encodeURIComponent(JSON.stringify(allIngredients)),
+          timeAvailable,
+          isVegan: isVegan ? "1" : "0",
+          mealType,
+        },
+      });
     } catch (error) {
       setError(`Error al generar la receta: ${error.message}`);
     } finally {
@@ -514,14 +525,6 @@ export default function RecipeGeneratorScreen() {
 
             {/* Modal de carga con frases aleatorias */}
             <LoadingRecipeModal visible={showLoadingModal} />
-
-            {recipeResult ? (
-              <View style={styles.resultContainer}>
-                <Text style={styles.resultTitle}>Tu Receta</Text>
-                {/* Usar nuestro componente de Markdown para mostrar la receta */}
-                <MarkdownRecipe content={recipeResult} />
-              </View>
-            ) : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
