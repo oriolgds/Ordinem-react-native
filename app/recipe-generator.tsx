@@ -45,7 +45,7 @@ const COMMON_FRESH_PRODUCTS = [
 
 export default function RecipeGeneratorScreen() {
   const router = useRouter();
-  const { products } = useProducts();
+  const { products, devices, devicesFetched } = useProducts();
   const [enrichedProducts, setEnrichedProducts] = useState<Product[]>([]); // Nuevo estado para productos enriquecidos
 
   // Estado para los productos seleccionados del armario
@@ -214,6 +214,39 @@ export default function RecipeGeneratorScreen() {
   useEffect(() => {
     enrichProductsWithOFFData(); // Enriquecer productos al cargar
   }, [products]);
+
+  // Si no hay dispositivos vinculados, mostrar pantalla alternativa
+  if (devicesFetched && devices.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Generador de Recetas AI</Text>
+        </View>
+
+        <View style={styles.noDeviceContainer}>
+          <Ionicons name="alert-circle-outline" size={80} color="#6D9EBE" />
+          <Text style={styles.noDeviceTitle}>No hay armarios vinculados</Text>
+          <Text style={styles.noDeviceMessage}>
+            Para usar el generador de recetas, primero necesitas vincular un armario Ordinem
+            y tener productos registrados en él.
+          </Text>
+          <TouchableOpacity
+            style={styles.pairDeviceButton}
+            onPress={() => router.push("/pair-device")}
+          >
+            <Ionicons name="link-outline" size={24} color="#fff" style={{marginRight: 8}} />
+            <Text style={styles.pairDeviceButtonText}>Vincular un armario</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -810,6 +843,42 @@ const styles = StyleSheet.create({
   },
   freshProductNameSelected: {
     color: "#fff",
+    fontWeight: "500",
+  },
+
+  // Nuevos estilos para la pantalla de no dispositivos
+  noDeviceContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  noDeviceTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  noDeviceMessage: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 30,
+    lineHeight: 24,
+  },
+  pairDeviceButton: {
+    flexDirection: "row",
+    backgroundColor: "#6D9EBE",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pairDeviceButtonText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "500",
   },
 });
