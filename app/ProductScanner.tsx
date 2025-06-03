@@ -29,7 +29,7 @@ import {
   ActivityIndicator,
   AppState,
 } from "react-native";
-import { BarCodeScanner } from "expo-barcode-scanner";
+import { Camera } from "expo-camera";
 import { useRouter, useNavigation } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ProductDetailsModal } from "@/components/ProductDetailsModal";
@@ -84,7 +84,7 @@ export default function ProductScanner() {
 
   useEffect(() => {
     const getBarCodeScannerPermissions = async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === "granted");
     };
 
@@ -264,53 +264,55 @@ export default function ProductScanner() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.container}>
-        <BarCodeScanner
+        <Camera
           style={StyleSheet.absoluteFillObject}
           onBarCodeScanned={handleBarCodeScanned}
-          barCodeTypes={[
-            BarCodeScanner.Constants.BarCodeType.ean13,
-            BarCodeScanner.Constants.BarCodeType.ean8,
-            BarCodeScanner.Constants.BarCodeType.upc_a,
-            BarCodeScanner.Constants.BarCodeType.upc_e,
-          ]}
-        />
-
-        <View style={styles.overlay}>
-          <View style={styles.unfilled} />
-          <View style={styles.row}>
+          barCodeScannerSettings={{
+            barCodeTypes: [
+              'ean13',
+              'ean8',
+              'upc_a',
+              'upc_e',
+            ],
+          }}
+        >
+          <View style={styles.overlay}>
             <View style={styles.unfilled} />
-            <View style={styles.scanner}>
-              {loading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color="white" />
-                  <Text style={styles.loadingText}>Buscando producto...</Text>
-                </View>
-              ) : (
-                <>
-                  <View style={[styles.cornerTL, styles.corner]} />
-                  <View style={[styles.cornerTR, styles.corner]} />
-                  <View style={[styles.cornerBL, styles.corner]} />
-                  <View style={[styles.cornerBR, styles.corner]} />
-                  {modalVisible && (
-                    <View style={styles.scannerActiveIndicator}>
-                      <Text style={styles.scannerActiveText}>
-                        Escáner activo
-                      </Text>
-                    </View>
-                  )}
-                </>
-              )}
+            <View style={styles.row}>
+              <View style={styles.unfilled} />
+              <View style={styles.scanner}>
+                {loading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="white" />
+                    <Text style={styles.loadingText}>Buscando producto...</Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={[styles.cornerTL, styles.corner]} />
+                    <View style={[styles.cornerTR, styles.corner]} />
+                    <View style={[styles.cornerBL, styles.corner]} />
+                    <View style={[styles.cornerBR, styles.corner]} />
+                    {modalVisible && (
+                      <View style={styles.scannerActiveIndicator}>
+                        <Text style={styles.scannerActiveText}>
+                          Escáner activo
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+              <View style={styles.unfilled} />
             </View>
-            <View style={styles.unfilled} />
+            <View style={styles.unfilled}>
+              <Text style={styles.instructions}>
+                {modalVisible
+                  ? "Escanea otro producto para cambiar"
+                  : "Alinea el código de barras dentro del recuadro para escanearlo"}
+              </Text>
+            </View>
           </View>
-          <View style={styles.unfilled}>
-            <Text style={styles.instructions}>
-              {modalVisible
-                ? "Escanea otro producto para cambiar"
-                : "Alinea el código de barras dentro del recuadro para escanearlo"}
-            </Text>
-          </View>
-        </View>
+        </Camera>
 
         <TouchableOpacity
           style={styles.closeButtonContainer}

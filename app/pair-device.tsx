@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator, Dimensions, SafeAreaView } from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { Camera } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { linkDevice } from '@/services/firebase';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,12 +17,12 @@ export default function PairDeviceScreen() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
     })();
   }, []);
 
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+  const handleBarCodeScanned = async ({ type, data }: { type: string, data: string }) => {
     try {
       setScanned(true);
       setLoading(true);
@@ -71,49 +71,50 @@ export default function PairDeviceScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mainContainer}>
-        <BarCodeScanner
+        <Camera
           onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
           style={[StyleSheet.absoluteFill, styles.scanner]}
-        />
-        
-        {/* Contenido superpuesto */}
-        <View style={styles.contentContainer}>
-          {/* Cabecera */}
-          <View style={styles.headerContainer}>
-            <Text style={styles.title}>Vincular Dispositivo</Text>
-            <Text style={styles.subtitle}>Escanea el código QR del dispositivo</Text>
-          </View>
+          ratio="16:9"
+        >
+          {/* Contenido superpuesto */}
+          <View style={styles.contentContainer}>
+            {/* Cabecera */}
+            <View style={styles.headerContainer}>
+              <Text style={styles.title}>Vincular Dispositivo</Text>
+              <Text style={styles.subtitle}>Escanea el código QR del dispositivo</Text>
+            </View>
 
-          {/* Área de escaneo */}
-          <View style={styles.scanAreaContainer}>
-            <View style={styles.scanFrame}>
-              {/* Esquinas */}
-              <View style={[styles.corner, styles.cornerTopLeft]} />
-              <View style={[styles.corner, styles.cornerTopRight]} />
-              <View style={[styles.corner, styles.cornerBottomLeft]} />
-              <View style={[styles.corner, styles.cornerBottomRight]} />
-              
-              {/* Icono central */}
-              <View style={styles.iconContainer}>
-                <Ionicons 
-                  name="qr-code-outline" 
-                  size={40} 
-                  color="#6D9EBE" 
-                />
+            {/* Área de escaneo */}
+            <View style={styles.scanAreaContainer}>
+              <View style={styles.scanFrame}>
+                {/* Esquinas */}
+                <View style={[styles.corner, styles.cornerTopLeft]} />
+                <View style={[styles.corner, styles.cornerTopRight]} />
+                <View style={[styles.corner, styles.cornerBottomLeft]} />
+                <View style={[styles.corner, styles.cornerBottomRight]} />
+                
+                {/* Icono central */}
+                <View style={styles.iconContainer}>
+                  <Ionicons 
+                    name="qr-code-outline" 
+                    size={40} 
+                    color="#6D9EBE" 
+                  />
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* Instrucciones */}
-          <View style={styles.instructionsContainer}>
-            <Text style={styles.instructionText}>
-              Centra el código QR dentro del marco
-            </Text>
-            <Text style={styles.hintText}>
-              Mantén el dispositivo estable y bien iluminado
-            </Text>
+            {/* Instrucciones */}
+            <View style={styles.instructionsContainer}>
+              <Text style={styles.instructionText}>
+                Centra el código QR dentro del marco
+              </Text>
+              <Text style={styles.hintText}>
+                Mantén el dispositivo estable y bien iluminado
+              </Text>
+            </View>
           </View>
-        </View>
+        </Camera>
 
         {/* Overlay de carga */}
         {loading && (
