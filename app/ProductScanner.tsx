@@ -29,7 +29,7 @@ import {
   ActivityIndicator,
   AppState,
 } from "react-native";
-import { BarCodeScanner } from "expo-barcode-scanner";
+import { CameraView, Camera } from "expo-camera";
 import { useRouter, useNavigation } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ProductDetailsModal } from "@/components/ProductDetailsModal";
@@ -83,12 +83,12 @@ export default function ProductScanner() {
   const navigation = useNavigation();
 
   useEffect(() => {
-    const getBarCodeScannerPermissions = async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
+    const getCameraPermissions = async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === "granted");
     };
 
-    getBarCodeScannerPermissions();
+    getCameraPermissions();
   }, []);
 
   useEffect(() => {
@@ -264,15 +264,12 @@ export default function ProductScanner() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.container}>
-        <BarCodeScanner
+        <CameraView
           style={StyleSheet.absoluteFillObject}
-          onBarCodeScanned={handleBarCodeScanned}
-          barCodeTypes={[
-            BarCodeScanner.Constants.BarCodeType.ean13,
-            BarCodeScanner.Constants.BarCodeType.ean8,
-            BarCodeScanner.Constants.BarCodeType.upc_a,
-            BarCodeScanner.Constants.BarCodeType.upc_e,
-          ]}
+          onBarcodeScanned={handleBarCodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e"],
+          }}
         />
 
         <View style={styles.overlay}>

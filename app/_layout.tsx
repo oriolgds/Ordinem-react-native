@@ -1,3 +1,4 @@
+// Firebase will be initialized when needed
 import {
   DarkTheme,
   DefaultTheme,
@@ -18,6 +19,7 @@ import { User, signInWithCustomToken } from "firebase/auth";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View } from "react-native";
 import { LinkingOptions } from "@react-navigation/native";
+import { FirebaseProvider } from "@/components/FirebaseProvider";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -124,23 +126,25 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider
-        value={colorScheme === "dark" ? OrdinemDarkTheme : OrdinemTheme}
-      >
-        <Stack screenOptions={{ headerShown: false }} linking={linking}>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="Login" options={{ headerShown: false }} />
-          <Stack.Screen name="register" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="+not-found"
-            options={{ title: "No encontrado" }}
-          />
-        </Stack>
-        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <FirebaseProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider
+          value={colorScheme === "dark" ? OrdinemDarkTheme : OrdinemTheme}
+        >
+          <Stack screenOptions={{ headerShown: false }} linking={linking}>
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="Login" options={{ headerShown: false }} />
+            <Stack.Screen name="register" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="+not-found"
+              options={{ title: "No encontrado" }}
+            />
+          </Stack>
+          <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </FirebaseProvider>
   );
 }
 

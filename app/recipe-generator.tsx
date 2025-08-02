@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { generateRecipe } from "@/src/services/cloudflareAI";
+import { generateRecipe } from "@/services/cloudflareAI";
 import { useProducts } from "@/hooks/useProducts";
 import { fetchProductWithCache } from "@/services/cacheService"; // Importar el servicio de caché
 import LoadingRecipeModal from "@/components/LoadingRecipeModal";

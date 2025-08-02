@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { Camera } from 'expo-camera';
+import { CameraView, Camera } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import { pairDevice } from '../services/firebase';
 import { getAuth } from 'firebase/auth';
@@ -69,10 +69,12 @@ const QRScanner = () => {
 
     return (
         <View style={styles.container}>
-            <Camera
+            <CameraView
                 style={styles.scanner}
-                onBarCodeScanned={handleBarCodeScanned}
-                ratio="16:9"
+                onBarcodeScanned={handleBarCodeScanned}
+                barcodeScannerSettings={{
+                    barcodeTypes: ["qr"],
+                }}
             >
                 <View style={styles.overlay}>
                     <View style={styles.scannerFrame} />
@@ -85,7 +87,7 @@ const QRScanner = () => {
                         </View>
                     )}
                 </View>
-            </Camera>
+            </CameraView>
         </View>
     );
 };

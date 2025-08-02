@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, ActivityIndicator, Dimensions, SafeAreaView } from 'react-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { CameraView, Camera } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { linkDevice } from '@/services/firebase';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +17,7 @@ export default function PairDeviceScreen() {
 
   useEffect(() => {
     (async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
+      const { status } = await Camera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
     })();
   }, []);
@@ -71,9 +71,12 @@ export default function PairDeviceScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mainContainer}>
-        <BarCodeScanner
-          onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+        <CameraView
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           style={[StyleSheet.absoluteFill, styles.scanner]}
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr"],
+          }}
         />
         
         {/* Contenido superpuesto */}
