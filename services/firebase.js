@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { 
+import {
     getAuth,
     connectAuthEmulator,
     signInWithEmailAndPassword,
@@ -9,7 +9,10 @@ import {
     signInAnonymously as firebaseSignInAnonymously,
     sendEmailVerification,
     sendPasswordResetEmail,
+    initializeAuth,
+    getReactNativePersistence
 } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getDatabase, ref, set, get, update, onValue, connectDatabaseEmulator } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -25,15 +28,12 @@ const firebaseConfig = {
 };
 
 // Inicializar Firebase solo una vez
-let app;
-if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig);
-} else {
-    app = getApps()[0];
-}
 
+const app = initializeApp(firebaseConfig);
 // Obtener instancias de Auth y Database usando getAuth y getDatabase
-const auth = getAuth(app);
+const auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage), // Provide AsyncStorage
+});
 const database = getDatabase(app);
 
 // Exportar las instancias

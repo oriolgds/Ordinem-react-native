@@ -6,7 +6,7 @@ export default {
     },
     name: "Ordinem",
     slug: "ordinem",
-    version: "1.2.1",
+    version: "2.0.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "myapp",
@@ -32,7 +32,7 @@ export default {
         "android.permission.RECORD_AUDIO",
       ],
       googleServicesFile: "./google-services.json",
-      versionCode: 7,
+      versionCode: 8,
     },
     web: {
       bundler: "metro",
@@ -44,7 +44,7 @@ export default {
       baseUrl: "/ordinem",
     },
     plugins: [
-      "@react-native-firebase/app",
+      "expo-web-browser",
       "expo-router",
       [
         "expo-splash-screen",

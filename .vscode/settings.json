@@ -1,5 +1,6 @@
 {
   "liveServer.settings.port": 546,
   "IDX.aI.enableInlineCompletion": true,
-  "IDX.aI.enableCodebaseIndexing": true
+  "IDX.aI.enableCodebaseIndexing": true,
+  "java.compile.nullAnalysis.mode": "disabled"
 }
