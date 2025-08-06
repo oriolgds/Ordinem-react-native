@@ -32,7 +32,7 @@ export default {
         "android.permission.RECORD_AUDIO",
       ],
       googleServicesFile: "./google-services.json",
-      versionCode: 8,
+      versionCode: 9,
     },
     web: {
       bundler: "metro",
