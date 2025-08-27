@@ -6,7 +6,7 @@ export default {
     },
     name: "Ordinem",
     slug: "ordinem",
-    version: "2.0.0",
+    version: "2.0.1",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "myapp",
@@ -32,7 +32,7 @@ export default {
         "android.permission.RECORD_AUDIO",
       ],
       googleServicesFile: "./google-services.json",
-      versionCode: 9,
+      versionCode: 10,
     },
     web: {
       bundler: "metro",
